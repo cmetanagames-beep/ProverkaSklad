@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Администрирование — AKFIX</title>
+  <link rel="stylesheet" href="/assets/admin.css">
+</head>
+<body>
+  <main class="shell">
+    <section id="loginView" class="login card hidden">
+      <img src="/assets/logo.svg" alt="AKFIX" class="logo">
+      <p class="eyebrow">Служебный доступ</p>
+      <h1>Вход администратора</h1>
+      <p class="muted">Управление фотографиями и комментариями проверок.</p>
+      <form id="loginForm">
+        <label>Логин<input id="login" autocomplete="username" required></label>
+        <label>PIN-код<input id="pin" type="password" inputmode="numeric" autocomplete="current-password" required></label>
+        <p id="loginError" class="error"></p>
+        <button class="primary" type="submit">Войти</button>
+      </form>
+      <a href="/" class="back-link">← Вернуться в приложение</a>
+    </section>
+
+    <section id="forbiddenView" class="card state hidden">
+      <div class="state-icon">!</div><h1>Нет доступа</h1>
+      <p>Эта страница доступна только администратору.</p>
+      <button id="forbiddenLogout" class="primary">Выйти из учётной записи</button>
+    </section>
+
+    <section id="adminView" class="hidden">
+      <header>
+        <div><img src="/assets/logo.svg" alt="AKFIX" class="logo"><span class="admin-badge">АДМИН</span></div>
+        <button id="logout" class="ghost">Выйти</button>
+      </header>
+      <div class="hero">
+        <p class="eyebrow">Панель управления</p>
+        <h1>Проверки склада</h1>
+        <p>Найдите заказ, чтобы удалить ошибочный комментарий или очистить фотографии конкретного склада.</p>
+      </div>
+      <div class="search"><span>⌕</span><input id="search" placeholder="Поиск по номеру заказа" autocomplete="off"><button id="refresh" title="Обновить">↻</button></div>
+      <div id="sync" class="sync">Загрузка заказов…</div>
+      <div id="orders" class="orders"></div>
+    </section>
+  </main>
+
+  <dialog id="orderDialog">
+    <div class="dialog-head"><div><small id="stage"></small><h2 id="orderTitle"></h2></div><button id="closeDialog" class="icon-button">×</button></div>
+    <section class="danger-zone">
+      <h3>Фотографии в карточке</h3>
+      <p>Очистка удалит все фотографии выбранного склада из поля Bitrix24.</p>
+      <div class="actions"><button data-clear="Мытищи" class="danger-outline">Очистить фото Мытищи</button><button data-clear="Балашиха" class="danger-outline">Очистить фото Балашиха</button></div>
+    </section>
+    <section><div class="section-title"><div><h3>Комментарии таймлайна</h3><p>Можно удалить ошибочную запись, созданную приложением.</p></div><button id="reloadComments" class="ghost">Обновить</button></div><div id="comments"></div></section>
+  </dialog>
+  <div id="toast" role="status"></div>
+  <script src="/assets/admin.js" defer></script>
+</body>
+</html>
