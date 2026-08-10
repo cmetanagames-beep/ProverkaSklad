@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#d80732">
+  <title>AKFIX — Складская проверка</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<section class="auth" id="auth"><form class="auth-card" id="loginForm"><div class="auth-logo">AKFIX</div><h1>Вход сотрудника</h1><p class="sub">Войдите под своей учётной записью. Склад определяется автоматически.</p><label class="auth-field"><span>Логин</span><input id="login" autocomplete="username" autocapitalize="none" required placeholder="Например, evgeniy"></label><label class="auth-field"><span>PIN-код</span><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" required placeholder="••••"></label><div class="auth-error" id="authError"></div><button class="primary" id="loginButton">Войти</button><p class="auth-note">Если вы не знаете логин или PIN — обратитесь к руководителю склада.</p></form></section>
+<div class="uploading" id="uploading"><div><div class="loader"></div><h2>Выгружаем проверку</h2><p class="sub">Не закрывайте приложение. Фото отправляются в Bitrix24 и Telegram.</p></div></div>
+<main class="shell">
+  <header class="top" id="top"><div class="logo">AKFIX</div><button class="head-user" data-help aria-label="Инструкция"><span>Е</span><b>Евгений</b><i>⌄</i></button></header>
+  <section class="screen active" data-screen="orders">
+    <h1>Проверка грузов</h1>
+    <div class="work-stage"><span class="status-check">✓</span><span><small>Этап работы</small><b>Передан на сборку</b></span></div>
+    <div class="section-label">Ваш склад</div>
+    <div class="employee-card login-strip warehouse-focus"><div class="warehouse-symbol">▤</div><div><div class="login-label">Склад</div><b id="listWarehouse">—</b><small id="listEmployee">—</small></div><div class="user" id="listInitial">—</div><button class="switch-user" id="listSwitch">Выйти</button></div>
+    <input class="search" id="search" placeholder="Номер заказа">
+    <button class="start-help" data-help><span class="help-symbol">✓</span><span><b>Проверьте заказ перед отправкой</b><small>Откройте заказ, укажите палеты и сделайте фотографии по инструкции.</small><em>Как работать →</em></span></button>
+    <div class="orders-head"><h2>Заказы на проверку</h2><span class="stage">Передан на сборку</span></div>
+    <div class="order-list" id="orders"></div><div class="sync"><i></i><span id="syncText">Загружаем заказы…</span></div>
+  </section>
+  <section class="screen with-rail" data-screen="special">
+    <div class="rail"><span class="done">✓</span><span class="on">2</span><span>3</span><span>4</span></div>
+    <div class="steps"><span class="step on" data-n="1">Склад</span><span class="step" data-n="2">Палеты</span><span class="step" data-n="3">Выбор</span><span class="step" data-n="4">Фото</span></div>
+    <h1>Проверка склада</h1><p class="sub">Сначала подтвердите, есть ли товар на вашем складе.</p>
+    <div class="tip"><span class="tip-icon">✓</span><span><b id="warehouseTip">Проверяем склад Мытищи</b><small>Проверка этого склада отправится отдельно и не будет ждать второй склад.</small></span></div>
+    <label class="no-cargo"><input type="checkbox" id="noCargoEarly"><span id="noCargoEarlyTitle">На складе Мытищи товара нет<small id="noCargoEarlyText">Зафиксировать отсутствие товара и выгрузить результат без фотографий.</small></span></label>
+    <div id="specialContent"><div class="section-label">Если товар есть — проверьте особые товары</div>
+    <article class="rule"><div class="rule-mark">Б</div><div><b>Б — бракованный товар</b><p>Сфотографируйте состояние коробки и товар внутри.</p></div></article>
+    <article class="rule"><div class="rule-mark">П</div><div><b>П — перебитый товар</b><p>Сфотографируйте маркировку со сроком и товар внутри.</p></div></article>
+    <div class="choices"><label class="choice"><input type="checkbox" id="hasB"> Есть товар Б</label><label class="choice"><input type="checkbox" id="hasP"> Есть товар П</label><label class="choice selected"><input type="checkbox" id="hasNone" checked> Нет особых товаров</label></div>
+    <div class="special-photos" id="specialPhotos"></div></div>
+    <div class="sticky"><button class="primary" id="toSetup">Продолжить</button></div>
+  </section>
+  <section class="screen with-rail" data-screen="setup">
+    <div class="rail"><span class="done">✓</span><span class="done">✓</span><span class="on">3</span><span>4</span></div>
+    <div class="steps"><span class="step done" data-n="1">Склад</span><span class="step on" data-n="2">Палеты</span><span class="step" data-n="3">Выбор</span><span class="step" data-n="4">Фото</span></div>
+    <h1>Мой склад и палеты</h1><p class="sub">Проверка этого склада выгружается отдельно и не ждёт второй склад.</p>
+    <div class="section-label">Текущий сотрудник</div><div class="employee-card"><div class="user" id="employeeInitial">—</div><div><b id="employeeName">—</b><small id="employeeWarehouse">—</small></div><button class="switch-user" id="switchUser">Выйти</button></div>
+    <div class="counters" id="counters"><div class="section-label">Европалеты</div><div class="counter"><button data-count="euro" data-delta="-1">−</button><strong id="euro">1</strong><button data-count="euro" data-delta="1">＋</button></div>
+    <div class="section-label">Американские палеты</div><div class="counter"><button data-count="american" data-delta="-1">−</button><strong id="american">0</strong><button data-count="american" data-delta="1">＋</button></div>
+    <div class="total"><b>Итого палет</b><strong id="total">1</strong></div><div class="tip amber"><span class="tip-icon">i</span><span><b>Какая палета считается европейской?</b><small>Европалета — 1200×800 мм. Американская — 1200×1000 или 1200×1200 мм.</small></span></div></div>
+    <div class="sticky"><button class="primary" id="toPallets">Продолжить</button></div>
+  </section>
+  <section class="screen with-rail" data-screen="pallets">
+    <div class="rail"><span class="done">✓</span><span class="done">✓</span><span class="done">✓</span><span class="on">4</span></div>
+    <div class="steps"><span class="step done" data-n="1">Склад</span><span class="step done" data-n="2">Палеты</span><span class="step on" data-n="3">Выбор</span><span class="step" data-n="4">Фото</span></div>
+    <h1>Выберите палету</h1><p class="sub">Открывайте палеты вручную. Для каждой требуется три фотографии.</p>
+    <div class="tip" id="palletCoach"><span class="tip-icon">1</span><span><b>С чего начать?</b><small>Нажмите на палету, которую фотографируете сейчас. После фото вы вернётесь в этот список.</small></span><button class="tip-close" id="closeCoach">×</button></div>
+    <div class="pallet-list" id="pallets"></div>
+    <div class="sticky"><button class="primary" id="finish" disabled>Выгрузить фото</button><p class="note">Проверка этого склада отправится сразу в Bitrix24 и Telegram</p></div>
+  </section>
+  <section class="screen" data-screen="capture">
+    <div class="steps"><span class="step done" data-n="1">Склад</span><span class="step done" data-n="2">Палеты</span><span class="step done" data-n="3">Выбор</span><span class="step on" data-n="4">Фото</span></div>
+    <div class="capture-head"><div><h1 id="captureTitle">Палета 1</h1><span class="stage" id="captureType">Европалета</span></div><div class="big-progress" id="captureProgress">0/3</div></div>
+    <p class="sub">Сделайте три фотографии палеты целиком.</p><div class="capture-list" id="captureList"></div><div class="tip amber"><span class="tip-icon">!</span><span><b>Палета должна быть видна целиком</b><small>Не обрезайте края и снимайте при хорошем освещении.</small></span></div><button class="secondary" data-help>Как фотографировать?</button>
+    <div class="sticky"><button class="primary" id="savePallet" disabled>Сохранить палету</button><p class="why" id="saveWhy">Добавьте все 3 фотографии</p></div>
+  </section>
+  <section class="screen" data-screen="success"><div class="success"><div class="success-icon">✓</div><h1>Проверка выгружена</h1><p class="sub">Фотографии и данные отправлены в Bitrix24 и Telegram.</p><div class="summary" id="summary"></div><button class="secondary" id="again">Вернуться к заказам</button></div></section>
+</main>
+<div class="toast" id="toast"></div>
+<div class="modal" id="helpModal"><section class="sheet"><div class="sheet-head"><h2>Как работать</h2><button class="sheet-close" id="closeHelp">×</button></div><div class="help-list"><div class="help-row"><i>1</i><span><b>Выберите заказ</b><small>Откройте нужный номер из списка Bitrix24.</small></span></div><div class="help-row"><i>2</i><span><b>Проверьте свой склад</b><small>Если товара нет — отметьте это. Если есть — укажите особые товары и палеты.</small></span></div><div class="help-row"><i>3</i><span><b>Снимите каждую палету</b><small>Первый угол, второй угол и вид сверху. Палета в кадре целиком.</small></span></div><div class="help-row"><i>4</i><span><b>Выгрузите результат</b><small>В рабочей версии фото отправятся в Bitrix24 и Telegram сразу для вашего склада.</small></span></div></div><button class="primary" id="understood">Понятно</button></section></div>
+<script src="/assets/app.js" defer></script>
+</body>
+</html>
+
