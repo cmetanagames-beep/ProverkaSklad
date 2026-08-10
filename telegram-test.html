@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AKFIX — тест Telegram</title>
+  <style>
+    :root{font-family:Arial,sans-serif;color:#172033;background:#eef2f0}*{box-sizing:border-box}body{margin:0;padding:24px}.app{width:min(620px,100%);margin:auto;background:#fff;border-radius:20px;padding:24px;box-shadow:0 18px 60px #1731261c}h1{margin:0 0 7px;font-size:26px}.hint{margin:0 0 22px;color:#667085;line-height:1.45}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.full{grid-column:1/-1}label{display:grid;gap:7px;font-size:13px;font-weight:700}input,select,button{font:inherit}input,select{width:100%;padding:12px;border:1px solid #d5dbe3;border-radius:11px;background:#fff}input:focus,select:focus{outline:3px solid #d7f0e4;border-color:#188052}.photos{margin-top:18px;padding:16px;border:1px dashed #a8b9af;border-radius:14px;background:#f8fbf9}.photos input{border:0;padding:0}.preview{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.preview img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:9px}.caption{margin:18px 0 0;padding:14px;white-space:pre-wrap;background:#f2f5f3;border-radius:12px;line-height:1.5;font-size:14px}.send{width:100%;margin-top:18px;border:0;border-radius:12px;padding:14px;background:#177a50;color:#fff;font-weight:800}.send:disabled{opacity:.55}.status{display:none;margin-top:14px;padding:12px;border-radius:10px;line-height:1.4}.status.show{display:block}.status.ok{background:#eaf8f0;color:#11613f}.status.bad{background:#fff0ef;color:#9b241d}.warning{margin-top:16px;color:#8a5b13;font-size:12px;line-height:1.45}@media(max-width:560px){body{padding:12px}.app{padding:18px}.grid{grid-template-columns:1fr}.full{grid-column:auto}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Тест отправки в Telegram</h1>
+    <p class="hint">Выберите от 2 до 10 фотографий. Они придут одним альбомом, подпись будет под первым фото.</p>
+    <section class="grid">
+      <label class="full">Токен ProverkaBot<input id="token" type="password" autocomplete="off" placeholder="Вставьте токен только для теста"></label>
+      <label class="full">ID группы<input id="chat" value="-5501084618"></label>
+      <label>Номер заказа<input id="order" value="УТ-3386"></label>
+      <label>Склад<select id="warehouse"><option>Мытищи</option><option>Балашиха</option></select></label>
+      <label class="full">Проверил<input id="employee" value="Евгений | AKFIX RUS"></label>
+      <label>Европалеты<input id="euro" type="number" min="0" value="5"></label>
+      <label>Американские палеты<input id="american" type="number" min="0" value="0"></label>
+    </section>
+    <section class="photos">
+      <label>Фотографии<input id="files" type="file" accept="image/*" multiple></label>
+      <div id="preview" class="preview"></div>
+    </section>
+    <pre id="caption" class="caption"></pre>
+    <button id="send" class="send">Отправить фотоальбом</button>
+    <div id="status" class="status"></div>
+    <div class="warning">Тестовый инструмент. Токен не сохраняется. После проверки перевыпустите токен в BotFather, поскольку прежний токен уже показывался в переписке.</div>
+  </main>
+  <script>
+    const $=id=>document.getElementById(id), fields=['order','warehouse','employee','euro','american'];
+    function caption(){return `#ВИ\nЗаказ: ${$('order').value.trim()}\nСклад: ${$('warehouse').value}\nПроверил: ${$('employee').value.trim()}\nЕвропалеты: ${$('euro').value||0}\nАмериканские палеты: ${$('american').value||0}`}
+    function renderCaption(){$('caption').textContent=caption()}
+    fields.forEach(id=>$(id).addEventListener('input',renderCaption));renderCaption();
+    $('files').addEventListener('change',()=>{const box=$('preview');box.innerHTML='';[...$('files').files].forEach(file=>{const img=document.createElement('img');img.src=URL.createObjectURL(file);img.alt=file.name;box.append(img)})});
+    function show(text,ok=false){const el=$('status');el.textContent=text;el.className=`status show ${ok?'ok':'bad'}`}
+    $('send').addEventListener('click',async()=>{
+      const token=$('token').value.trim(),chat=$('chat').value.trim(),files=[...$('files').files];
+      if(!token)return show('Вставьте токен ProverkaBot.');
+      if(!chat)return show('Укажите ID группы.');
+      if(files.length<2||files.length>10)return show('Для альбома выберите от 2 до 10 фотографий.');
+      const btn=$('send');btn.disabled=true;btn.textContent='Отправляем…';
+      try{
+        const form=new FormData();form.append('chat_id',chat);
+        const media=files.map((file,i)=>({type:'photo',media:`attach://photo${i}`,...(i===0?{caption:caption()}: {})}));
+        form.append('media',JSON.stringify(media));files.forEach((file,i)=>form.append(`photo${i}`,file,file.name));
+        const response=await fetch(`https://api.telegram.org/bot${token}/sendMediaGroup`,{method:'POST',body:form});
+        const result=await response.json();if(!result.ok)throw new Error(result.description||'Telegram вернул ошибку');
+        show(`Готово: отправлено фотографий — ${result.result.length}. Проверьте группу «Зона проверки для бота».`,true);
+      }catch(error){show(`Не удалось отправить: ${error.message}. Проверьте VPN, токен и доступ бота к группе.`)}
+      finally{btn.disabled=false;btn.textContent='Отправить фотоальбом'}
+    });
+  </script>
+</body>
+</html>
