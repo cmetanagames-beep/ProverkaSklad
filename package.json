@@ -5,7 +5,7 @@
   "description": "Мобильная проверка складских заказов AKFIX",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check src/app.js && node --check src/config.js && node --check src/integrations/bitrix-client.js && node --check public/assets/app.js && node --check public/assets/admin.js"
+    "check": "node --check server.js && node --check src/app.js && node --check src/config.js && node --check src/integrations/bitrix-client.js && node --check src/uploads/check-service.js && node --check src/uploads/pending-check-store.js && node --check public/assets/app.js && node --check public/assets/admin.js"
   },
   "engines": {
     "node": ">=20"
