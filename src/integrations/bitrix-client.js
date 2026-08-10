@@ -1,5 +1,5 @@
 class BitrixClient {
-  constructor(webhookBase) { this.webhookBase = webhookBase; }
+  constructor(webhookBase) { this.webhookBase = webhookBase; this.acceptedVerificationStageId = null; }
   get configured() { return Boolean(this.webhookBase); }
 
   async call(method, payload, contentType = 'application/json') {
@@ -55,6 +55,16 @@ class BitrixClient {
     return this.call('crm.item.update', {
       entityTypeId: 1052, id: Number(orderId), fields: { [field]: [] },
     });
+  }
+
+  async moveToAcceptedVerification(orderId) {
+    if (!this.acceptedVerificationStageId) {
+      const stages = await this.call('crm.status.list', { filter: { ENTITY_ID: 'DYNAMIC_1052_STAGE_31' } });
+      const target = stages.find(stage => /^принято на проверку$/i.test(String(stage.NAME || '').trim()));
+      if (!target) throw new Error('BITRIX_STAGE_NOT_FOUND: Принято на проверку');
+      this.acceptedVerificationStageId = target.STATUS_ID;
+    }
+    return this.call('crm.item.update', { entityTypeId: 1052, id: Number(orderId), fields: { stageId: this.acceptedVerificationStageId } });
   }
 
   async proxy(method, body, contentType) {
