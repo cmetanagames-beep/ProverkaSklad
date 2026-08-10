@@ -21,7 +21,7 @@ class Application {
       if (url.pathname === '/api/login' && req.method === 'POST') return this.#login(req, res);
       if (url.pathname === '/api/logout' && req.method === 'POST') return this.#logout(res);
       if (url.pathname === '/api/checks/complete' && req.method === 'POST') return this.#complete(req, res);
-      if (url.pathname.startsWith('/api/bitrix/') && req.method === 'POST') return this.#proxyBitrix(req, res, url.pathname.slice(13));
+      if (url.pathname.startsWith('/api/bitrix/') && req.method === 'POST') return this.#proxyBitrix(req, res, url.pathname.slice('/api/bitrix/'.length));
       return this.#static(req, res, url.pathname);
     } catch (error) {
       console.error(error);
