@@ -4,9 +4,14 @@
   "private": true,
   "description": "Мобильная проверка складских заказов AKFIX",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node --check server.js && node --check public/assets/app.js"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "busboy": "^1.6.0"
   }
 }
+
