@@ -8,10 +8,10 @@
   <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body>
-<section class="auth" id="auth"><form class="auth-card" id="loginForm"><div class="auth-logo">AKFIX</div><h1>Вход сотрудника</h1><p class="sub">Войдите под своей учётной записью. Склад определяется автоматически.</p><label class="auth-field"><span>Логин</span><input id="login" autocomplete="username" autocapitalize="none" required placeholder="Например, evgeniy"></label><label class="auth-field"><span>PIN-код</span><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" required placeholder="••••"></label><div class="auth-error" id="authError"></div><button class="primary" id="loginButton">Войти</button><p class="auth-note">Если вы не знаете логин или PIN — обратитесь к руководителю склада.</p></form></section>
+<section class="auth" id="auth"><form class="auth-card" id="loginForm"><img class="brand-logo auth-logo" src="/assets/logo.svg" alt="AKFIX"><h1>Вход сотрудника</h1><p class="sub">Войдите под своей учётной записью. Склад определяется автоматически.</p><label class="auth-field"><span>Логин</span><input id="login" autocomplete="username" autocapitalize="none" required placeholder="Например, evgeniy"></label><label class="auth-field"><span>PIN-код</span><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" required placeholder="••••"></label><div class="auth-error" id="authError"></div><button class="primary" id="loginButton">Войти</button><p class="auth-note">Если вы не знаете логин или PIN — обратитесь к руководителю склада.</p></form></section>
 <div class="uploading" id="uploading"><div><div class="loader"></div><h2>Выгружаем проверку</h2><p class="sub">Не закрывайте приложение. Фото отправляются в Bitrix24 и Telegram.</p></div></div>
 <main class="shell">
-  <header class="top" id="top"><div class="logo">AKFIX</div><button class="head-user" data-help aria-label="Инструкция"><span>Е</span><b>Евгений</b><i>⌄</i></button></header>
+  <header class="top" id="top"><img class="brand-logo header-logo" src="/assets/logo.svg" alt="AKFIX"><button class="head-user" data-help aria-label="Инструкция"><span>Е</span><b>Евгений</b><i>⌄</i></button></header>
   <section class="screen active" data-screen="orders">
     <h1>Проверка грузов</h1>
     <div class="work-stage"><span class="status-check">✓</span><span><small>Этап работы</small><b>Передан на сборку</b></span></div>
