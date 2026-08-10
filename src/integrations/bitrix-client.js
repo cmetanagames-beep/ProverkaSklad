@@ -31,12 +31,39 @@ class BitrixClient {
     });
   }
 
+  async listComments(orderId) {
+    return this.call('crm.timeline.comment.list', {
+      filter: { ENTITY_ID: Number(orderId), ENTITY_TYPE: 'dynamic_1052' },
+      select: ['ID', 'CREATED', 'AUTHOR_ID', 'COMMENT', 'FILES'],
+      order: { ID: 'DESC' },
+    });
+  }
+
+  async deleteComment({ orderId, commentId }) {
+    return this.call('crm.timeline.comment.delete', {
+      id: Number(commentId), ownerTypeId: 1052, ownerId: Number(orderId),
+    });
+  }
+
+  async clearWarehousePhotos({ orderId, warehouse }) {
+    const photoFields = {
+      'Балашиха': 'ufCrm19_1752654317973',
+      'Мытищи': 'ufCrm19_1761641310794',
+    };
+    const field = photoFields[warehouse];
+    if (!field) throw new Error(`UNKNOWN_WAREHOUSE: ${warehouse}`);
+    return this.call('crm.item.update', {
+      entityTypeId: 1052, id: Number(orderId), fields: { [field]: [] },
+    });
+  }
+
   async proxy(method, body, contentType) {
     if (!/^[a-z0-9._-]+\.json$/i.test(method)) throw new Error('INVALID_METHOD');
+    const allowed = new Set(['crm.status.list.json', 'crm.item.list.json', 'crm.item.fields.json']);
+    if (!allowed.has(method)) throw new Error('METHOD_NOT_ALLOWED');
     if (!this.configured) throw new Error('BITRIX_NOT_CONFIGURED');
     return fetch(`${this.webhookBase}/${method}`, { method: 'POST', headers: { 'Content-Type': contentType }, body });
   }
 }
 
 module.exports = { BitrixClient };
-
