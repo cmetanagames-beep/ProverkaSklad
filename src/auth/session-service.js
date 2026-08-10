@@ -40,7 +40,7 @@ class SessionService {
   }
 
   publicUser(user) {
-    return { login: user.login, name: user.name, warehouse: user.warehouse };
+    return { login: user.login, name: user.name, warehouse: user.warehouse || null, role: user.role || 'employee' };
   }
 
   #hash(value) { return crypto.createHash('sha256').update(value).digest('hex'); }
@@ -48,4 +48,3 @@ class SessionService {
 }
 
 module.exports = { SessionService };
-
