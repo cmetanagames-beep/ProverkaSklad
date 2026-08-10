@@ -4,7 +4,11 @@ function parseUsers(raw) {
   if (!raw) return [];
   const users = JSON.parse(raw);
   if (!Array.isArray(users)) throw new Error('APP_USERS_JSON must be a JSON array');
-  return users.filter(({ login, pin, name, warehouse }) => login && pin && name && warehouse);
+  return users
+    .map(user => ({ ...user, role: user.role || 'employee' }))
+    .filter(({ login, pin, name, warehouse, role }) =>
+      login && pin && name && (role === 'admin' || Boolean(warehouse))
+    );
 }
 
 module.exports = {
@@ -16,4 +20,3 @@ module.exports = {
   sessionSecret: String(process.env.SESSION_SECRET || ''),
   users: parseUsers(process.env.APP_USERS_JSON),
 };
-
