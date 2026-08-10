@@ -14,16 +14,21 @@ class BitrixClient {
     return data.result;
   }
 
-  async addCheckComment({ orderId, text, files }) {
-    const batches = files.length ? Array.from({ length: Math.ceil(files.length / 10) }, (_, i) => files.slice(i * 10, i * 10 + 10)) : [[]];
-    for (let i = 0; i < batches.length; i++) {
-      await this.call('crm.timeline.comment.add', { fields: {
-        ENTITY_ID: Number(orderId),
-        ENTITY_TYPE: 'dynamic_1052',
-        COMMENT: i === 0 ? text : `Продолжение фотографий ${i + 1}/${batches.length}`,
-        FILES: batches[i].map(file => [file.filename, file.buffer.toString('base64')]),
-      }});
-    }
+  async updateWarehousePhotos({ orderId, warehouse, files }) {
+    if (!files.length) return;
+    const photoFields = {
+      'Балашиха': 'ufCrm19_1752654317973',
+      'Мытищи': 'ufCrm19_1761641310794',
+    };
+    const field = photoFields[warehouse];
+    if (!field) throw new Error(`UNKNOWN_WAREHOUSE: ${warehouse}`);
+    await this.call('crm.item.update', {
+      entityTypeId: 1052,
+      id: Number(orderId),
+      fields: {
+        [field]: files.map(file => [file.filename, file.buffer.toString('base64')]),
+      },
+    });
   }
 
   async proxy(method, body, contentType) {
