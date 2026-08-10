@@ -21,6 +21,9 @@ class Application {
       if (url.pathname === '/api/login' && req.method === 'POST') return this.#login(req, res);
       if (url.pathname === '/api/logout' && req.method === 'POST') return this.#logout(res);
       if (url.pathname === '/api/checks/complete' && req.method === 'POST') return this.#complete(req, res);
+      if (url.pathname === '/api/admin/comments/list' && req.method === 'POST') return this.#adminListComments(req, res);
+      if (url.pathname === '/api/admin/comments/delete' && req.method === 'POST') return this.#adminDeleteComment(req, res);
+      if (url.pathname === '/api/admin/photos/clear' && req.method === 'POST') return this.#adminClearPhotos(req, res);
       if (url.pathname.startsWith('/api/bitrix/') && req.method === 'POST') return this.#proxyBitrix(req, res, url.pathname.slice('/api/bitrix/'.length));
       return this.#static(req, res, url.pathname);
     } catch (error) {
@@ -32,6 +35,7 @@ class Application {
 
   #health(res) { sendJson(res, 200, { ok: true, bitrixConfigured: this.bitrix.configured, telegramConfigured: this.checks.telegram.configured }); }
   #user(req, res) { const user = this.sessions.userFromRequest(req); if (!user) sendJson(res, 401, { error: 'AUTH_REQUIRED' }); return user; }
+  #admin(req, res) { const user = this.#user(req, res); if (!user) return null; if ((user.role || 'employee') !== 'admin') { sendJson(res, 403, { error: 'ADMIN_REQUIRED' }); return null; } return user; }
   #session(req, res) { const user = this.#user(req, res); if (user) sendJson(res, 200, { user: this.sessions.publicUser(user) }); }
 
   async #login(req, res) {
@@ -54,6 +58,26 @@ class Application {
       const code = error.message.startsWith('TELEGRAM:') || error.message === 'TELEGRAM_NOT_CONFIGURED' ? 'TELEGRAM_UPLOAD_FAILED' : 'BITRIX_UPLOAD_FAILED';
       sendJson(res, 502, { error: code, status: error.uploadStatus || { bitrix: false, telegram: false }, message: error.message });
     }
+  }
+
+  async #adminListComments(req, res) {
+    if (!this.#admin(req, res)) return;
+    const { orderId } = await readJson(req);
+    sendJson(res, 200, { comments: await this.bitrix.listComments(orderId) });
+  }
+
+  async #adminDeleteComment(req, res) {
+    if (!this.#admin(req, res)) return;
+    const { orderId, commentId } = await readJson(req);
+    await this.bitrix.deleteComment({ orderId, commentId });
+    sendJson(res, 200, { ok: true });
+  }
+
+  async #adminClearPhotos(req, res) {
+    if (!this.#admin(req, res)) return;
+    const { orderId, warehouse } = await readJson(req);
+    await this.bitrix.clearWarehousePhotos({ orderId, warehouse });
+    sendJson(res, 200, { ok: true });
   }
 
   async #proxyBitrix(req, res, method) {
@@ -79,4 +103,3 @@ class Application {
 }
 
 module.exports = { Application };
-
