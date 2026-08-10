@@ -5,7 +5,7 @@ class CheckService {
     this.#validate(fields, files);
     const text = this.#buildText(fields, user);
     const status = { bitrix: false, telegram: false };
-    await this.bitrix.addCheckComment({ orderId: fields.orderId, text, files });
+    await this.bitrix.updateWarehousePhotos({ orderId: fields.orderId, warehouse: user.warehouse, files });
     status.bitrix = true;
     try { await this.telegram.sendCheck(text, files); status.telegram = true; }
     catch (error) { error.uploadStatus = status; throw error; }
