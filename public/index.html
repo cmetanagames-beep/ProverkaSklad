@@ -7,6 +7,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <title>AKFIX — Складская проверка</title>
   <link rel="stylesheet" href="/assets/styles.css">
+  <style>.order.needs-combined{background:#fff8e8!important;border-left:4px solid #f5a800!important}.order.needs-combined small:last-child{color:#916400!important;font-weight:900}.bottom-nav button:focus{outline:none}.bottom-nav button:focus-visible{outline:3px solid rgba(0,170,152,.35);outline-offset:-3px;border-radius:10px}.warehouse-focus{border-color:#dfe5e2;border-left:4px solid #00aa98}</style>
 </head>
 <body>
 <section class="auth" id="auth"><form class="auth-card" id="loginForm"><img class="brand-logo auth-logo" src="/assets/logo.svg" alt="AKFIX"><h1>Вход сотрудника</h1><p class="sub">Войдите под своей учётной записью. Склад определяется автоматически.</p><label class="auth-field"><span>Логин</span><input id="login" autocomplete="username" required placeholder="Например, Иван"></label><label class="auth-field"><span>PIN-код</span><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" required placeholder="••••"></label><div class="auth-error" id="authError"></div><button class="primary" id="loginButton">Войти</button><p class="auth-note">Если вы не знаете логин или PIN — обратитесь к руководителю склада.</p></form></section>
@@ -40,7 +41,7 @@
   <section class="screen with-rail" data-screen="setup">
     <div class="rail"><span class="done">✓</span><span class="done">✓</span><span class="on">3</span><span>4</span></div>
     <div class="steps"><span class="step done" data-n="1">Склад</span><span class="step on" data-n="2">Палеты</span><span class="step" data-n="3">Выбор</span><span class="step" data-n="4">Фото</span></div>
-    <h1>Мой склад и палеты</h1><p class="sub">После заполнения результат сохранится до проверки второго склада.</p>
+    <h1 id="setupTitle">Мой склад и палеты</h1><p class="sub" id="setupSub">После заполнения результат сохранится до проверки второго склада.</p>
     <div class="section-label">Текущий сотрудник</div><div class="employee-card"><div class="user" id="employeeInitial">—</div><div><b id="employeeName">—</b><small id="employeeWarehouse">—</small></div><button class="switch-user" id="switchUser">Выйти</button></div>
     <div class="counters" id="counters"><div class="section-label">Европалеты</div><div class="counter"><button data-count="euro" data-delta="-1">−</button><strong id="euro">1</strong><button data-count="euro" data-delta="1">＋</button></div>
     <div class="section-label">Американские палеты</div><div class="counter"><button data-count="american" data-delta="-1">−</button><strong id="american">0</strong><button data-count="american" data-delta="1">＋</button></div>
