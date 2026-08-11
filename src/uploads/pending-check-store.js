@@ -59,7 +59,7 @@ class PendingCheckStore {
 
   async status(orderId) {
     const pair = await this.loadPair(orderId);
-    const summary = check => check ? { completed: true, noCargo: check.fields.noCargo === 'true', employee: check.user.name, savedAt: check.savedAt } : { completed: false };
+    const summary = check => check ? { completed: true, noCargo: check.fields.noCargo === 'true', employee: check.user.name, warehouse: check.user.warehouse, savedAt: check.savedAt, photos: check.files.length, euro: Number(check.fields.euro || 0), american: Number(check.fields.american || 0) } : { completed: false, photos: 0 };
     const requiresCombined = Boolean(pair['Мытищи'] && pair['Балашиха'] && pair['Мытищи'].fields.noCargo !== 'true');
     return { mytishchi: summary(pair['Мытищи']), balashikha: summary(pair['Балашиха']), combined: summary(pair.combined), requiresCombined };
   }
@@ -77,7 +77,7 @@ class PendingCheckStore {
         const requiresCombined = warehouseChecks.length === 2 && pair['Мытищи'].fields.noCargo !== 'true' && !pair.combined;
         if (warehouseChecks.length === 2 && !requiresCombined) continue;
         const waitingFor = requiresCombined ? 'Объединение на Балашихе' : pair['Мытищи'] ? 'Балашиха' : 'Мытищи';
-        rows.push({ orderId: entry.name, orderNumber: check.fields.orderNumber, orderTitle: check.fields.orderTitle || check.fields.orderNumber, completedWarehouse: warehouseChecks.map(x=>x.user.warehouse).join(' + '), employee: warehouseChecks.map(x=>x.user.name).join(', '), waitingFor, requiresCombined, savedAt: check.savedAt });
+        rows.push({ orderId: entry.name, orderNumber: check.fields.orderNumber, orderTitle: check.fields.orderTitle || check.fields.orderNumber, completedWarehouse: warehouseChecks.map(x=>x.user.warehouse).join(' + '), employee: warehouseChecks.map(x=>x.user.name).join(', '), mytishchiReady: Boolean(pair['Мытищи']), balashikhaReady: Boolean(pair['Балашиха']), waitingFor, requiresCombined, savedAt: check.savedAt });
       }
       return rows.sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)));
     } catch (error) { if (error.code === 'ENOENT') return []; throw error; }
