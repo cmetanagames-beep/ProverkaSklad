@@ -1,14 +1,16 @@
 class CheckService {
-  constructor({ bitrix, telegram, pendingChecks }) {
+  constructor({ bitrix, telegram, pendingChecks, history }) {
     this.bitrix = bitrix;
     this.telegram = telegram;
     this.pendingChecks = pendingChecks;
+    this.history = history;
     this.finalizing = new Map();
   }
 
   async complete({ fields, files, user }) {
     this.#validate(fields, files);
     await this.pendingChecks.save({ fields, files, user });
+    await this.history.upsert(fields, user, 'waiting');
     const pair = await this.pendingChecks.loadPair(fields.orderId);
     const waitingFor = Object.entries(pair).find(([, check]) => !check)?.[0];
     if (waitingFor) return { pending: true, completed: false, savedWarehouse: user.warehouse, waitingFor };
@@ -35,6 +37,7 @@ class CheckService {
       await this.bitrix.moveToAcceptedVerification(orderId);
       status.stageChanged = true;
       status.completed = true;
+      await this.history.markOrderCompleted(orderId, checks.map(check => check.user));
       await this.pendingChecks.clear(orderId);
       return status;
     } catch (error) {
