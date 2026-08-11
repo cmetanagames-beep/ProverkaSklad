@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Администрирование — AKFIX</title>
   <link rel="stylesheet" href="/assets/admin.css">
+  <link rel="stylesheet" href="/assets/admin-users.css">
 </head>
 <body>
   <main class="shell">
@@ -33,6 +34,8 @@
         <div><img src="/assets/logo.svg" alt="AKFIX" class="logo"><span class="admin-badge">АДМИН</span></div>
         <button id="logout" class="ghost">Выйти</button>
       </header>
+      <nav class="admin-tabs"><button class="active" data-tab="ordersPanel">Заказы</button><button data-tab="employeesPanel">Сотрудники</button></nav>
+      <section id="ordersPanel">
       <div class="hero">
         <p class="eyebrow">Панель управления</p>
         <h1>Проверки склада</h1>
@@ -41,6 +44,8 @@
       <div class="search"><span>⌕</span><input id="search" placeholder="Поиск по номеру заказа" autocomplete="off"><button id="refresh" title="Обновить">↻</button></div>
       <div id="sync" class="sync">Загрузка заказов…</div>
       <div id="orders" class="orders"></div>
+      </section>
+      <section id="employeesPanel" class="hidden"><div class="hero employee-hero"><div><p class="eyebrow">Доступ к приложению</p><h1>Сотрудники</h1><p>Создавайте учётные записи и меняйте имя, склад или PIN-код.</p></div><button id="addEmployee" class="primary compact">Добавить сотрудника</button></div><div id="employees" class="employees"></div></section>
     </section>
   </main>
 
@@ -53,6 +58,7 @@
     </section>
     <section><div class="section-title"><div><h3>Комментарии таймлайна</h3><p>Можно удалить ошибочную запись, созданную приложением.</p></div><button id="reloadComments" class="ghost">Обновить</button></div><div id="comments"></div></section>
   </dialog>
+  <dialog id="employeeDialog"><form id="employeeForm"><div class="dialog-head"><div><small>Учётная запись</small><h2 id="employeeDialogTitle">Новый сотрудник</h2></div><button type="button" id="closeEmployee" class="icon-button">×</button></div><section class="employee-form"><input type="hidden" id="employeeId"><label>Логин<input id="employeeLogin" required placeholder="Например, Иван"></label><label>Имя сотрудника<input id="employeeName" required placeholder="Иван"></label><label>Склад<select id="employeeWarehouse"><option>Балашиха</option><option>Мытищи</option></select></label><label>Новый PIN-код<input id="employeePin" type="password" inputmode="numeric" pattern="[0-9]{4,12}" placeholder="4–12 цифр"></label><p class="form-note" id="pinNote">Для нового сотрудника PIN обязателен.</p><button class="primary" type="submit">Сохранить</button></section></form></dialog>
   <div id="toast" role="status"></div>
   <script src="/assets/admin.js" defer></script>
 </body>
