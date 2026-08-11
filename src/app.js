@@ -2,28 +2,36 @@ const fs = require('fs');
 const path = require('path');
 const { sendJson, readJson } = require('./http/response');
 
-const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml'};
+const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.webmanifest':'application/manifest+json','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml'};
 
 class Application {
-  constructor({ publicDir, sessions, bitrix, multipart, checks }) {
+  constructor({ publicDir, sessions, bitrix, multipart, checks, history, userStore }) {
     this.publicDir = publicDir;
     this.sessions = sessions;
     this.bitrix = bitrix;
     this.multipart = multipart;
     this.checks = checks;
+    this.history = history;
+    this.userStore = userStore;
+    this.version = process.env.APP_VERSION || `${Date.now()}`;
   }
 
   async handle(req, res) {
     try {
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
       if (url.pathname === '/health') return this.#health(res);
+      if (url.pathname === '/api/version' && req.method === 'GET') return sendJson(res, 200, { version: this.version }, { 'Cache-Control': 'no-store' });
       if (url.pathname === '/api/session' && req.method === 'GET') return this.#session(req, res);
       if (url.pathname === '/api/login' && req.method === 'POST') return this.#login(req, res);
       if (url.pathname === '/api/logout' && req.method === 'POST') return this.#logout(res);
       if (url.pathname === '/api/checks/complete' && req.method === 'POST') return this.#complete(req, res);
+      if (url.pathname === '/api/history' && req.method === 'GET') return this.#history(req, res);
       if (url.pathname === '/api/admin/comments/list' && req.method === 'POST') return this.#adminListComments(req, res);
       if (url.pathname === '/api/admin/comments/delete' && req.method === 'POST') return this.#adminDeleteComment(req, res);
       if (url.pathname === '/api/admin/photos/clear' && req.method === 'POST') return this.#adminClearPhotos(req, res);
+      if (url.pathname === '/api/admin/users' && req.method === 'GET') return this.#adminUsers(req, res);
+      if (url.pathname === '/api/admin/users/create' && req.method === 'POST') return this.#adminCreateUser(req, res);
+      if (url.pathname === '/api/admin/users/update' && req.method === 'POST') return this.#adminUpdateUser(req, res);
       if (url.pathname.startsWith('/api/bitrix/') && req.method === 'POST') return this.#proxyBitrix(req, res, url.pathname.slice('/api/bitrix/'.length));
       return this.#static(req, res, url.pathname);
     } catch (error) {
@@ -60,6 +68,12 @@ class Application {
     }
   }
 
+  async #history(req, res) {
+    const user = this.#user(req, res);
+    if (!user) return;
+    sendJson(res, 200, { items: await this.history.list(user.login) });
+  }
+
   async #adminListComments(req, res) {
     if (!this.#admin(req, res)) return;
     const { orderId } = await readJson(req);
@@ -80,6 +94,22 @@ class Application {
     sendJson(res, 200, { ok: true });
   }
 
+  #adminUsers(req, res) {
+    if (!this.#admin(req, res)) return;
+    sendJson(res, 200, { items: this.userStore.listEmployees() });
+  }
+
+  async #adminCreateUser(req, res) {
+    if (!this.#admin(req, res)) return;
+    sendJson(res, 201, { user: await this.userStore.createEmployee(await readJson(req)) });
+  }
+
+  async #adminUpdateUser(req, res) {
+    if (!this.#admin(req, res)) return;
+    const body = await readJson(req);
+    sendJson(res, 200, { user: await this.userStore.updateEmployee(body.id, body) });
+  }
+
   async #proxyBitrix(req, res, method) {
     if (!this.#user(req, res)) return;
     const chunks = [];
@@ -96,7 +126,7 @@ class Application {
     if (!file.startsWith(this.publicDir + path.sep)) return sendJson(res, 403, { error: 'FORBIDDEN' });
     fs.readFile(file, (error, data) => {
       if (error) return sendJson(res, error.code === 'ENOENT' ? 404 : 500, { error: 'NOT_FOUND' });
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream' });
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
       res.end(req.method === 'HEAD' ? undefined : data);
     });
   }
