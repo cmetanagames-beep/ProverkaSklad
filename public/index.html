@@ -19,12 +19,11 @@
     <div class="section-label">Ваш склад</div>
     <div class="employee-card login-strip warehouse-focus"><div class="warehouse-symbol">▤</div><div><div class="login-label">Склад</div><b id="listWarehouse">—</b><small id="listEmployee">—</small></div><div class="user" id="listInitial">—</div><button class="switch-user" id="listSwitch">Выйти</button></div>
     <input class="search" id="search" placeholder="Номер заказа">
-    <div class="order-actions"><button id="refreshOrders">↻ Обновить заказы</button><button id="openHistory">Моя история <span id="queueBadge"></span></button></div>
     <button class="start-help" data-help><span class="help-symbol">✓</span><span><b>Проверьте заказ перед отправкой</b><small>Откройте заказ, укажите палеты и сделайте фотографии по инструкции.</small><em>Как работать →</em></span></button>
-    <div class="orders-head"><h2>Заказы на проверку</h2><span class="stage">2 этапа Bitrix24</span></div>
+    <div class="orders-head"><div><h2>Заказы на проверку</h2><span class="stage">2 этапа Bitrix24</span></div><button class="refresh-icon" id="refreshOrders" aria-label="Обновить заказы">↻</button></div>
     <div class="order-list" id="orders"></div><div class="sync"><i></i><span id="syncText">Загружаем заказы…</span></div>
   </section>
-  <section class="screen" data-screen="history"><div class="history-head"><div><h1>Моя история</h1><p class="sub">Проверки, выполненные под вашей учётной записью.</p></div><button class="back-list" id="closeHistory">Назад</button></div><div class="offline-state" id="offlineState"></div><div class="history-list" id="historyList"></div></section>
+  <section class="screen" data-screen="history"><div class="history-head"><div><h1>История проверок</h1><p class="sub">Ваши результаты и заказы, ожидающие второй склад.</p></div></div><div class="offline-state" id="offlineState"></div><h2 class="history-section-title">Ожидают второй склад</h2><div class="history-list pending-list" id="pendingList"></div><h2 class="history-section-title">Мои проверки</h2><div class="history-list" id="historyList"></div></section>
   <section class="screen with-rail" data-screen="special">
     <div class="rail"><span class="done">✓</span><span class="on">2</span><span>3</span><span>4</span></div>
     <div class="steps"><span class="step on" data-n="1">Склад</span><span class="step" data-n="2">Палеты</span><span class="step" data-n="3">Выбор</span><span class="step" data-n="4">Фото</span></div>
@@ -64,6 +63,7 @@
   </section>
   <section class="screen" data-screen="success"><div class="success"><div class="success-icon">✓</div><h1>Проверка выгружена</h1><p class="sub">Фотографии и данные отправлены в Bitrix24 и Telegram.</p><div class="summary" id="summary"></div><button class="secondary" id="again">Вернуться к заказам</button></div></section>
 </main>
+<nav class="bottom-nav" id="bottomNav"><button class="active" data-nav="orders"><span>▤</span>Заказы</button><button data-nav="history"><span>◷</span>История <i id="queueBadge"></i></button></nav>
 <div class="toast" id="toast"></div>
 <div class="modal" id="helpModal"><section class="sheet"><div class="sheet-head"><h2>Как работать</h2><button class="sheet-close" id="closeHelp">×</button></div><div class="help-list"><div class="help-row"><i>1</i><span><b>Выберите заказ</b><small>Откройте нужный номер из списка Bitrix24.</small></span></div><div class="help-row"><i>2</i><span><b>Проверьте свой склад</b><small>Если товара нет — отметьте это. Если есть — укажите особые товары и палеты.</small></span></div><div class="help-row"><i>3</i><span><b>Снимите каждую палету</b><small>Два угла, вид сверху и ещё две стороны, где хорошо виден товар.</small></span></div><div class="help-row"><i>4</i><span><b>Выгрузите результат</b><small>После проверки двух складов фото попадут в Bitrix24 и Telegram.</small></span></div></div><button class="primary" id="understood">Понятно</button></section></div>
 <script src="/assets/offline.js" defer></script><script src="/assets/app.js" defer></script>
