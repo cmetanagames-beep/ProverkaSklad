@@ -48,6 +48,23 @@ class PendingCheckStore {
     return { 'Мытищи': mytishchi, 'Балашиха': balashikha };
   }
 
+  async listPending() {
+    try {
+      const entries = await fs.readdir(this.rootDir, { withFileTypes: true });
+      const rows = [];
+      for (const entry of entries) {
+        if (!entry.isDirectory() || !/^\d+$/.test(entry.name)) continue;
+        const pair = await this.loadPair(entry.name);
+        const checks = Object.values(pair).filter(Boolean);
+        if (!checks.length || checks.length === 2) continue;
+        const check = checks[0];
+        const waitingFor = pair['Мытищи'] ? 'Балашиха' : 'Мытищи';
+        rows.push({ orderId: entry.name, orderNumber: check.fields.orderNumber, orderTitle: check.fields.orderTitle || check.fields.orderNumber, completedWarehouse: check.user.warehouse, employee: check.user.name, waitingFor, savedAt: check.savedAt });
+      }
+      return rows.sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)));
+    } catch (error) { if (error.code === 'ENOENT') return []; throw error; }
+  }
+
   async clear(orderId) { await fs.rm(path.join(this.rootDir, this.#orderId(orderId)), { recursive: true, force: true }); }
 
   #orderId(value) { const id = String(value || ''); if (!/^\d+$/.test(id)) throw new Error('INVALID_ORDER_ID'); return id; }
