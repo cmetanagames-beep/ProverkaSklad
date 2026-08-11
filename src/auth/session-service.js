@@ -1,21 +1,21 @@
 const crypto = require('crypto');
 
 class SessionService {
-  constructor({ secret, users, ttlMs = 12 * 60 * 60 * 1000 }) {
+  constructor({ secret, userStore, ttlMs = 30 * 24 * 60 * 60 * 1000 }) {
     if (!secret) throw new Error('SESSION_SECRET is required');
-    if (!users.length) throw new Error('APP_USERS_JSON must contain at least one user');
+    if (!userStore) throw new Error('User store is required');
     this.secret = secret;
-    this.users = users;
+    this.userStore = userStore;
     this.ttlMs = ttlMs;
   }
 
   authenticate(login, pin) {
     const normalized = String(login || '').trim().toLowerCase();
     const suppliedHash = this.#hash(String(pin || ''));
-    return this.users.find(user =>
-      String(user.login).toLowerCase() === normalized &&
+    const user = this.userStore.findByLogin(normalized);
+    return user &&
       crypto.timingSafeEqual(Buffer.from(this.#hash(String(user.pin))), Buffer.from(suppliedHash))
-    ) || null;
+      ? user : null;
   }
 
   createCookie(user) {
@@ -35,13 +35,14 @@ class SessionService {
     if (!signature || signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
     try {
       const data = JSON.parse(Buffer.from(value, 'base64url').toString());
-      return data.exp > Date.now() ? this.users.find(user => user.login === data.login) || null : null;
+      return data.exp > Date.now() ? this.userStore.findByLogin(data.login) : null;
     } catch { return null; }
   }
 
   publicUser(user) {
     return { login: user.login, name: user.name, warehouse: user.warehouse || null, role: user.role || 'employee' };
   }
+
 
   #hash(value) { return crypto.createHash('sha256').update(value).digest('hex'); }
   #sign(value) { return crypto.createHmac('sha256', this.secret).update(value).digest('base64url'); }
