@@ -46,6 +46,14 @@ class CheckService {
   #validate(fields, files) {
     if (!fields.orderId || !fields.orderNumber) throw new Error('INVALID_CHECK');
     if (fields.noCargo !== 'true' && !files.length) throw new Error('PHOTOS_REQUIRED');
+    if (fields.noCargo !== 'true') {
+      const palletCount = Number(fields.euro || 0) + Number(fields.american || 0);
+      const requiredShots = new Set(['angle1', 'angle2', 'top', 'product1', 'product2']);
+      for (let pallet = 1; pallet <= palletCount; pallet++) {
+        const present = new Set(files.map(file => file.filename.match(new RegExp(`^pallet-${pallet}-(angle1|angle2|top|product1|product2)-`))?.[1]).filter(Boolean));
+        if ([...requiredShots].some(shot => !present.has(shot))) throw new Error(`PALLET_PHOTOS_INCOMPLETE:${pallet}`);
+      }
+    }
   }
 
   #buildText(fields, user) {
