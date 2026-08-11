@@ -26,6 +26,7 @@ class Application {
       if (url.pathname === '/api/logout' && req.method === 'POST') return this.#logout(res);
       if (url.pathname === '/api/checks/complete' && req.method === 'POST') return this.#complete(req, res);
       if (url.pathname === '/api/history' && req.method === 'GET') return this.#history(req, res);
+      if (url.pathname === '/api/pending' && req.method === 'GET') return this.#pending(req, res);
       if (url.pathname === '/api/admin/comments/list' && req.method === 'POST') return this.#adminListComments(req, res);
       if (url.pathname === '/api/admin/comments/delete' && req.method === 'POST') return this.#adminDeleteComment(req, res);
       if (url.pathname === '/api/admin/photos/clear' && req.method === 'POST') return this.#adminClearPhotos(req, res);
@@ -72,6 +73,11 @@ class Application {
     const user = this.#user(req, res);
     if (!user) return;
     sendJson(res, 200, { items: await this.history.list(user.login) });
+  }
+
+  async #pending(req, res) {
+    if (!this.#user(req, res)) return;
+    sendJson(res, 200, { items: await this.checks.pending() });
   }
 
   async #adminListComments(req, res) {
