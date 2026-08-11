@@ -9,7 +9,7 @@ class PendingCheckStore {
 
   async save({ fields, files, user }) {
     const orderId = this.#orderId(fields.orderId);
-    const warehouseKey = this.#warehouseKey(user.warehouse);
+    const warehouseKey = fields.phase === 'combined' ? 'combined' : this.#warehouseKey(user.warehouse);
     const orderDir = path.join(this.rootDir, orderId);
     const finalDir = path.join(orderDir, warehouseKey);
     const tempDir = path.join(orderDir, `.${warehouseKey}-${crypto.randomUUID()}`);
@@ -44,8 +44,24 @@ class PendingCheckStore {
   }
 
   async loadPair(orderId) {
-    const [mytishchi, balashikha] = await Promise.all([this.load(orderId, 'Мытищи'), this.load(orderId, 'Балашиха')]);
-    return { 'Мытищи': mytishchi, 'Балашиха': balashikha };
+    const [mytishchi, balashikha, combined] = await Promise.all([this.load(orderId, 'Мытищи'), this.load(orderId, 'Балашиха'), this.loadCombined(orderId)]);
+    return { 'Мытищи': mytishchi, 'Балашиха': balashikha, combined };
+  }
+
+  async loadCombined(orderId) {
+    const folder = path.join(this.rootDir, this.#orderId(orderId), 'combined');
+    try {
+      const record = JSON.parse(await fs.readFile(path.join(folder, 'check.json'), 'utf8'));
+      record.files = await Promise.all(record.files.map(async file => ({ ...file, buffer: await fs.readFile(path.join(folder, file.diskName)) })));
+      return record;
+    } catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+  }
+
+  async status(orderId) {
+    const pair = await this.loadPair(orderId);
+    const summary = check => check ? { completed: true, noCargo: check.fields.noCargo === 'true', employee: check.user.name, savedAt: check.savedAt } : { completed: false };
+    const requiresCombined = Boolean(pair['Мытищи'] && pair['Балашиха'] && pair['Мытищи'].fields.noCargo !== 'true');
+    return { mytishchi: summary(pair['Мытищи']), balashikha: summary(pair['Балашиха']), combined: summary(pair.combined), requiresCombined };
   }
 
   async listPending() {
@@ -55,11 +71,13 @@ class PendingCheckStore {
       for (const entry of entries) {
         if (!entry.isDirectory() || !/^\d+$/.test(entry.name)) continue;
         const pair = await this.loadPair(entry.name);
-        const checks = Object.values(pair).filter(Boolean);
-        if (!checks.length || checks.length === 2) continue;
-        const check = checks[0];
-        const waitingFor = pair['Мытищи'] ? 'Балашиха' : 'Мытищи';
-        rows.push({ orderId: entry.name, orderNumber: check.fields.orderNumber, orderTitle: check.fields.orderTitle || check.fields.orderNumber, completedWarehouse: check.user.warehouse, employee: check.user.name, waitingFor, savedAt: check.savedAt });
+        const warehouseChecks = [pair['Мытищи'], pair['Балашиха']].filter(Boolean);
+        if (!warehouseChecks.length) continue;
+        const check = warehouseChecks[0];
+        const requiresCombined = warehouseChecks.length === 2 && pair['Мытищи'].fields.noCargo !== 'true' && !pair.combined;
+        if (warehouseChecks.length === 2 && !requiresCombined) continue;
+        const waitingFor = requiresCombined ? 'Объединение на Балашихе' : pair['Мытищи'] ? 'Балашиха' : 'Мытищи';
+        rows.push({ orderId: entry.name, orderNumber: check.fields.orderNumber, orderTitle: check.fields.orderTitle || check.fields.orderNumber, completedWarehouse: warehouseChecks.map(x=>x.user.warehouse).join(' + '), employee: warehouseChecks.map(x=>x.user.name).join(', '), waitingFor, requiresCombined, savedAt: check.savedAt });
       }
       return rows.sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)));
     } catch (error) { if (error.code === 'ENOENT') return []; throw error; }
