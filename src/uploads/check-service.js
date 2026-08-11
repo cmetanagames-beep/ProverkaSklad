@@ -7,6 +7,8 @@ class CheckService {
     this.finalizing = new Map();
   }
 
+  pending() { return this.pendingChecks.listPending(); }
+
   async complete({ fields, files, user }) {
     this.#validate(fields, files);
     await this.pendingChecks.save({ fields, files, user });
