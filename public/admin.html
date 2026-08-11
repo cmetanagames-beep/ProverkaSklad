@@ -6,6 +6,7 @@
   <title>Администрирование — AKFIX</title>
   <link rel="stylesheet" href="/assets/admin.css">
   <link rel="stylesheet" href="/assets/admin-users.css">
+  <style>.check-progress{display:grid;gap:10px;margin-top:16px}.check-step{display:grid;grid-template-columns:34px 1fr;gap:11px;align-items:center;padding:13px;border:1px solid #dbe4e1;border-radius:12px;background:#f7f8f8}.check-step>span{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#e4e8e7;color:#6f7774;font-weight:900}.check-step.ready>span{background:#daf3e9;color:#006b46}.check-step b,.check-step small{display:block}.check-step small{color:#65736f;margin-top:4px}</style>
 </head>
 <body>
   <main class="shell">
@@ -51,6 +52,7 @@
 
   <dialog id="orderDialog">
     <div class="dialog-head"><div><small id="stage"></small><h2 id="orderTitle"></h2></div><button id="closeDialog" class="icon-button">×</button></div>
+    <section><div class="section-title"><div><h3>Ход проверки</h3><p>Результаты складов и этап объединения груза.</p></div></div><div id="orderProgress" class="check-progress"></div></section>
     <section class="danger-zone">
       <h3>Фотографии в карточке</h3>
       <p>Очистка удалит все фотографии выбранного склада из поля Bitrix24.</p>
