@@ -23,7 +23,12 @@ class UserStore {
 
   #seed() { return this.seedUsers.map(user => ({ id: crypto.randomUUID(), ...user, login: (user.role || 'employee') === 'employee' ? user.name : user.login })); }
 
-  findByLogin(login) { const value=String(login||'').trim().toLocaleLowerCase('ru');return this.users.find(user=>String(user.login).trim().toLocaleLowerCase('ru')===value)||null; }
+  findByLogin(login) {
+    const aliases = { ivan: 'иван', albert: 'альберт' };
+    const entered = String(login || '').trim().toLocaleLowerCase('ru');
+    const value = aliases[entered] || entered;
+    return this.users.find(user => String(user.login).trim().toLocaleLowerCase('ru') === value) || null;
+  }
   listEmployees() { return this.users.filter(user => (user.role || 'employee') === 'employee').map(this.#public); }
 
   async createEmployee(input) {
