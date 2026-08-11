@@ -27,6 +27,7 @@ class Application {
       if (url.pathname === '/api/checks/complete' && req.method === 'POST') return this.#complete(req, res);
       if (url.pathname === '/api/history' && req.method === 'GET') return this.#history(req, res);
       if (url.pathname === '/api/pending' && req.method === 'GET') return this.#pending(req, res);
+      if (url.pathname === '/api/check-status' && req.method === 'GET') return this.#checkStatus(req, res, url);
       if (url.pathname === '/api/admin/comments/list' && req.method === 'POST') return this.#adminListComments(req, res);
       if (url.pathname === '/api/admin/comments/delete' && req.method === 'POST') return this.#adminDeleteComment(req, res);
       if (url.pathname === '/api/admin/photos/clear' && req.method === 'POST') return this.#adminClearPhotos(req, res);
@@ -78,6 +79,11 @@ class Application {
   async #pending(req, res) {
     if (!this.#user(req, res)) return;
     sendJson(res, 200, { items: await this.checks.pending() });
+  }
+
+  async #checkStatus(req, res, url) {
+    if (!this.#user(req, res)) return;
+    sendJson(res, 200, await this.checks.status(url.searchParams.get('orderId')));
   }
 
   async #adminListComments(req, res) {
