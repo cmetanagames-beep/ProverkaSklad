@@ -19,5 +19,7 @@ module.exports = {
   telegramChatId: String(process.env.TELEGRAM_CHAT_ID || ''),
   sessionSecret: String(process.env.SESSION_SECRET || ''),
   checkStorageDir: path.resolve(process.env.CHECK_STORAGE_DIR || path.join(__dirname, '..', 'data', 'checks')),
+  historyStorageDir: path.resolve(process.env.HISTORY_STORAGE_DIR || path.join(__dirname, '..', 'data', 'history')),
+  userStorageFile: path.resolve(process.env.USER_STORAGE_FILE || path.join(__dirname, '..', 'data', 'users.json')),
   users: parseUsers(process.env.APP_USERS_JSON),
 };
