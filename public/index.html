@@ -48,22 +48,21 @@
   <section class="screen with-rail" data-screen="pallets">
     <div class="rail"><span class="done">✓</span><span class="done">✓</span><span class="done">✓</span><span class="on">4</span></div>
     <div class="steps"><span class="step done" data-n="1">Склад</span><span class="step done" data-n="2">Палеты</span><span class="step on" data-n="3">Выбор</span><span class="step" data-n="4">Фото</span></div>
-    <h1>Выберите палету</h1><p class="sub">Открывайте палеты вручную. Для каждой требуется три фотографии.</p>
+    <h1>Выберите палету</h1><p class="sub">Открывайте палеты вручную. Для каждой требуется пять фотографий.</p>
     <div class="tip" id="palletCoach"><span class="tip-icon">1</span><span><b>С чего начать?</b><small>Нажмите на палету, которую фотографируете сейчас. После фото вы вернётесь в этот список.</small></span><button class="tip-close" id="closeCoach">×</button></div>
     <div class="pallet-list" id="pallets"></div>
     <div class="sticky"><button class="primary" id="finish" disabled>Выгрузить фото</button><p class="note">Проверка этого склада отправится сразу в Bitrix24 и Telegram</p></div>
   </section>
   <section class="screen" data-screen="capture">
     <div class="steps"><span class="step done" data-n="1">Склад</span><span class="step done" data-n="2">Палеты</span><span class="step done" data-n="3">Выбор</span><span class="step on" data-n="4">Фото</span></div>
-    <div class="capture-head"><div><h1 id="captureTitle">Палета 1</h1><span class="stage" id="captureType">Европалета</span></div><div class="big-progress" id="captureProgress">0/3</div></div>
-    <p class="sub">Сделайте три фотографии палеты целиком.</p><div class="capture-list" id="captureList"></div><div class="tip amber"><span class="tip-icon">!</span><span><b>Палета должна быть видна целиком</b><small>Не обрезайте края и снимайте при хорошем освещении.</small></span></div><button class="secondary" data-help>Как фотографировать?</button>
-    <div class="sticky"><button class="primary" id="savePallet" disabled>Сохранить палету</button><p class="why" id="saveWhy">Добавьте все 3 фотографии</p></div>
+    <div class="capture-head"><div><h1 id="captureTitle">Палета 1</h1><span class="stage" id="captureType">Европалета</span></div><div class="big-progress" id="captureProgress">0/5</div></div>
+    <p class="sub">Сделайте три общих фото палеты и два фото, где хорошо виден товар.</p><div class="capture-list" id="captureList"></div><div class="tip amber"><span class="tip-icon">!</span><span><b>Товар должен быть хорошо виден</b><small>Первые три кадра показывают палету целиком, последние два — товар с двух сторон.</small></span></div><button class="secondary" data-help>Как фотографировать?</button>
+    <div class="sticky"><button class="primary" id="savePallet" disabled>Сохранить палету</button><p class="why" id="saveWhy">Добавьте все 5 фотографий</p></div>
   </section>
   <section class="screen" data-screen="success"><div class="success"><div class="success-icon">✓</div><h1>Проверка выгружена</h1><p class="sub">Фотографии и данные отправлены в Bitrix24 и Telegram.</p><div class="summary" id="summary"></div><button class="secondary" id="again">Вернуться к заказам</button></div></section>
 </main>
 <div class="toast" id="toast"></div>
-<div class="modal" id="helpModal"><section class="sheet"><div class="sheet-head"><h2>Как работать</h2><button class="sheet-close" id="closeHelp">×</button></div><div class="help-list"><div class="help-row"><i>1</i><span><b>Выберите заказ</b><small>Откройте нужный номер из списка Bitrix24.</small></span></div><div class="help-row"><i>2</i><span><b>Проверьте свой склад</b><small>Если товара нет — отметьте это. Если есть — укажите особые товары и палеты.</small></span></div><div class="help-row"><i>3</i><span><b>Снимите каждую палету</b><small>Первый угол, второй угол и вид сверху. Палета в кадре целиком.</small></span></div><div class="help-row"><i>4</i><span><b>Выгрузите результат</b><small>В рабочей версии фото отправятся в Bitrix24 и Telegram сразу для вашего склада.</small></span></div></div><button class="primary" id="understood">Понятно</button></section></div>
+<div class="modal" id="helpModal"><section class="sheet"><div class="sheet-head"><h2>Как работать</h2><button class="sheet-close" id="closeHelp">×</button></div><div class="help-list"><div class="help-row"><i>1</i><span><b>Выберите заказ</b><small>Откройте нужный номер из списка Bitrix24.</small></span></div><div class="help-row"><i>2</i><span><b>Проверьте свой склад</b><small>Если товара нет — отметьте это. Если есть — укажите особые товары и палеты.</small></span></div><div class="help-row"><i>3</i><span><b>Снимите каждую палету</b><small>Два угла, вид сверху и ещё две стороны, где хорошо виден товар.</small></span></div><div class="help-row"><i>4</i><span><b>Выгрузите результат</b><small>После проверки двух складов фото попадут в Bitrix24 и Telegram.</small></span></div></div><button class="primary" id="understood">Понятно</button></section></div>
 <script src="/assets/app.js" defer></script>
 </body>
 </html>
-
