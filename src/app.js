@@ -31,6 +31,7 @@ class Application {
       if (url.pathname === '/api/admin/comments/list' && req.method === 'POST') return this.#adminListComments(req, res);
       if (url.pathname === '/api/admin/comments/delete' && req.method === 'POST') return this.#adminDeleteComment(req, res);
       if (url.pathname === '/api/admin/photos/clear' && req.method === 'POST') return this.#adminClearPhotos(req, res);
+      if (url.pathname === '/api/admin/check-status' && req.method === 'GET') return this.#adminCheckStatus(req, res, url);
       if (url.pathname === '/api/admin/users' && req.method === 'GET') return this.#adminUsers(req, res);
       if (url.pathname === '/api/admin/users/create' && req.method === 'POST') return this.#adminCreateUser(req, res);
       if (url.pathname === '/api/admin/users/update' && req.method === 'POST') return this.#adminUpdateUser(req, res);
@@ -104,6 +105,11 @@ class Application {
     const { orderId, warehouse } = await readJson(req);
     await this.bitrix.clearWarehousePhotos({ orderId, warehouse });
     sendJson(res, 200, { ok: true });
+  }
+
+  async #adminCheckStatus(req, res, url) {
+    if (!this.#admin(req, res)) return;
+    sendJson(res, 200, await this.checks.status(url.searchParams.get('orderId')));
   }
 
   #adminUsers(req, res) {
