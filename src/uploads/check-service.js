@@ -8,14 +8,19 @@ class CheckService {
   }
 
   pending() { return this.pendingChecks.listPending(); }
+  status(orderId) { return this.pendingChecks.status(orderId); }
 
   async complete({ fields, files, user }) {
+    const before = await this.pendingChecks.loadPair(fields.orderId);
+    if (user.warehouse === 'Балашиха' && before['Мытищи'] && before['Балашиха'] && before['Мытищи'].fields.noCargo !== 'true' && !before.combined) fields.phase = 'combined';
     this.#validate(fields, files);
+    if (fields.phase === 'combined' && (!before['Мытищи'] || !before['Балашиха'] || before['Мытищи'].fields.noCargo === 'true')) throw new Error('COMBINED_NOT_REQUIRED');
     await this.pendingChecks.save({ fields, files, user });
     await this.history.upsert(fields, user, 'waiting');
     const pair = await this.pendingChecks.loadPair(fields.orderId);
-    const waitingFor = Object.entries(pair).find(([, check]) => !check)?.[0];
+    const waitingFor = ['Мытищи','Балашиха'].find(warehouse => !pair[warehouse]);
     if (waitingFor) return { pending: true, completed: false, savedWarehouse: user.warehouse, waitingFor };
+    if (pair['Мытищи'].fields.noCargo !== 'true' && !pair.combined) return { pending: true, completed: false, requiresCombined: true, savedWarehouse: user.warehouse, waitingFor: 'Объединение на Балашихе' };
 
     const key = String(fields.orderId);
     if (!this.finalizing.has(key)) this.finalizing.set(key, this.#finalize(key, pair).finally(() => this.finalizing.delete(key)));
@@ -27,13 +32,15 @@ class CheckService {
     for (const warehouse of ['Балашиха', 'Мытищи']) {
       const check = pair[warehouse];
       if (check.fields.noCargo === 'true') await this.bitrix.clearWarehousePhotos({ orderId, warehouse });
-      else await this.bitrix.updateWarehousePhotos({ orderId, warehouse, files: check.files });
+      else await this.bitrix.updateWarehousePhotos({ orderId, warehouse, files: warehouse === 'Балашиха' && pair.combined ? [...check.files, ...pair.combined.files] : check.files });
     }
+    if (pair.combined) await this.bitrix.updateCombinedPhotos({ orderId, files: pair.combined.files });
     status.bitrix = true;
     try {
       const checks = ['Балашиха', 'Мытищи'].map(warehouse => pair[warehouse]);
-      const text = checks.map(check => this.#buildText(check.fields, check.user)).join('\n\n');
-      const files = checks.flatMap(check => check.files);
+      let text = checks.map(check => this.#buildText(check.fields, check.user)).join('\n\n');
+      const files = [...checks.flatMap(check => check.files), ...(pair.combined?.files || [])];
+      if (pair.combined) text += '\n\n🔗 ОБЪЕДИНЁННЫЙ ГРУЗ\nСклад: Балашиха\nФото после догруза: добавлены';
       await this.telegram.sendCheck(text, files);
       status.telegram = true;
       await this.bitrix.moveToAcceptedVerification(orderId);
