@@ -35,6 +35,8 @@ class Application {
       if (url.pathname === '/api/admin/users' && req.method === 'GET') return this.#adminUsers(req, res);
       if (url.pathname === '/api/admin/users/create' && req.method === 'POST') return this.#adminCreateUser(req, res);
       if (url.pathname === '/api/admin/users/update' && req.method === 'POST') return this.#adminUpdateUser(req, res);
+      if (url.pathname === '/api/admin/telegram/chats' && req.method === 'GET') return this.#adminTelegramChats(req, res);
+      if (url.pathname === '/api/admin/telegram/select' && req.method === 'POST') return this.#adminTelegramSelect(req, res);
       if (url.pathname.startsWith('/api/bitrix/') && req.method === 'POST') return this.#proxyBitrix(req, res, url.pathname.slice('/api/bitrix/'.length));
       return this.#static(req, res, url.pathname);
     } catch (error) {
@@ -126,6 +128,18 @@ class Application {
     if (!this.#admin(req, res)) return;
     const body = await readJson(req);
     sendJson(res, 200, { user: await this.userStore.updateEmployee(body.id, body) });
+  }
+
+  async #adminTelegramChats(req, res) {
+    if (!this.#admin(req, res)) return;
+    sendJson(res, 200, { items: await this.checks.telegram.listChats() });
+  }
+
+  async #adminTelegramSelect(req, res) {
+    if (!this.#admin(req, res)) return;
+    const { chatId } = await readJson(req);
+    await this.checks.telegram.selectChat(chatId);
+    sendJson(res, 200, { ok: true });
   }
 
   async #proxyBitrix(req, res, method) {
