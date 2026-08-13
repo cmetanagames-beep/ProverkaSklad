@@ -1,6 +1,34 @@
+const fs = require('fs/promises');
+const path = require('path');
+
 class TelegramClient {
-  constructor({ token, chatId }) { this.token = token; this.chatId = chatId; }
+  constructor({ token, chatId, settingsFile }) { this.token = token; this.chatId = chatId; this.settingsFile = settingsFile; }
   get configured() { return Boolean(this.token && this.chatId); }
+
+  async init() {
+    if (!this.settingsFile) return;
+    try { const saved = JSON.parse(await fs.readFile(this.settingsFile, 'utf8')); if (saved.chatId) this.chatId = String(saved.chatId); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+  }
+
+  async listChats() {
+    if (!this.token) throw new Error('TELEGRAM_NOT_CONFIGURED');
+    const response = await fetch(`https://api.telegram.org/bot${this.token}/getUpdates`);
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(`TELEGRAM: ${data.description || response.status}`);
+    const chats = new Map();
+    for (const update of data.result || []) {
+      const message = update.message || update.channel_post;
+      if (message?.chat && ['group','supergroup','channel'].includes(message.chat.type)) chats.set(String(message.chat.id), { id: String(message.chat.id), title: message.chat.title || 'Без названия', type: message.chat.type, current: String(message.chat.id) === String(this.chatId) });
+    }
+    return [...chats.values()];
+  }
+
+  async selectChat(chatId) {
+    this.chatId = String(chatId);
+    if (this.settingsFile) { await fs.mkdir(path.dirname(this.settingsFile), { recursive: true }); await fs.writeFile(this.settingsFile, JSON.stringify({ chatId: this.chatId, updatedAt: new Date().toISOString() })); }
+    return this.#sendText('✅ AKFIX: эта группа выбрана для фотографий проверки склада.');
+  }
 
   async sendCheck(text, files) {
     if (!this.configured) throw new Error('TELEGRAM_NOT_CONFIGURED');
@@ -48,4 +76,3 @@ class TelegramClient {
 }
 
 module.exports = { TelegramClient };
-
