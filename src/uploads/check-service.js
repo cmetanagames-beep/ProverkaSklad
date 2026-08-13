@@ -40,17 +40,11 @@ class CheckService {
       const checks = ['Балашиха', 'Мытищи'].map(warehouse => pair[warehouse]);
       let text = checks.map(check => this.#buildText(check.fields, check.user)).join('\n\n');
       if (pair.combined) text += `\n\nОБЪЕДИНЁННЫЙ ГРУЗ\nСклад: Балашиха\nОбъединил: ${pair.combined.user.name}\nЕвропалеты после объединения: ${pair.combined.fields.euro || 0}\nАмериканские палеты после объединения: ${pair.combined.fields.american || 0}\nВсего после объединения: ${Number(pair.combined.fields.euro || 0) + Number(pair.combined.fields.american || 0)} палет`;
-      const warehouseAlbums = [
-        { title: 'ФОТО СКЛАДА МЫТИЩИ', files: pair['Мытищи'].files },
-        { title: 'ФОТО СКЛАДА БАЛАШИХА', files: pair['Балашиха'].files },
-      ].filter(album => album.files.length);
-      if (!warehouseAlbums.length) await this.telegram.sendCheck(text, []);
-      for (let index = 0; index < warehouseAlbums.length; index++) {
-        await this.telegram.sendCheck(`${index === 0 ? `${text}\n\n` : ''}${warehouseAlbums[index].title}`, warehouseAlbums[index].files);
-      }
+      const warehouseFiles = [...pair['Мытищи'].files, ...pair['Балашиха'].files];
+      await this.telegram.sendCheck(text, warehouseFiles);
       if (pair.combined) {
         const total = Number(pair.combined.fields.euro || 0) + Number(pair.combined.fields.american || 0);
-        await this.telegram.sendCheck(`ДОГРУЗ ЗАВЕРШЁН\nЗаказ: ${pair.combined.fields.orderTitle || pair.combined.fields.orderNumber}\nОбъединил: ${pair.combined.user.name}\nПосле объединения получилось: ${total} палет\n\nФОТО ОБЪЕДИНЁННОГО ГРУЗА`, pair.combined.files);
+        await this.telegram.sendCheck(`ФОТО ОБЪЕДИНЁННОГО ГРУЗА\nЗаказ: ${pair.combined.fields.orderTitle || pair.combined.fields.orderNumber}\nОбъединил: ${pair.combined.user.name}\nПосле объединения получилось: ${total} палет`, pair.combined.files);
       }
       status.telegram = true;
       await this.bitrix.moveToAcceptedVerification(orderId);
