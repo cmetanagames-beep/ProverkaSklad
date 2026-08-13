@@ -17,6 +17,7 @@ module.exports = {
   bitrixWebhookBase: String(process.env.BITRIX_WEBHOOK_BASE || '').replace(/\/+$/, ''),
   telegramBotToken: String(process.env.TELEGRAM_BOT_TOKEN || ''),
   telegramChatId: String(process.env.TELEGRAM_CHAT_ID || ''),
+  telegramSettingsFile: path.resolve(process.env.TELEGRAM_SETTINGS_FILE || path.join(__dirname, '..', 'data', 'telegram.json')),
   sessionSecret: String(process.env.SESSION_SECRET || ''),
   checkStorageDir: path.resolve(process.env.CHECK_STORAGE_DIR || path.join(__dirname, '..', 'data', 'checks')),
   historyStorageDir: path.resolve(process.env.HISTORY_STORAGE_DIR || path.join(__dirname, '..', 'data', 'history')),
