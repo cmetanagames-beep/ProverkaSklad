@@ -105,7 +105,8 @@ class Application {
   async #adminClearPhotos(req, res) {
     if (!this.#admin(req, res)) return;
     const { orderId, warehouse } = await readJson(req);
-    await this.bitrix.clearWarehousePhotos({ orderId, warehouse });
+    if (warehouse === 'Объединённый груз') await this.bitrix.clearCombinedPhotos(orderId);
+    else await this.bitrix.clearWarehousePhotos({ orderId, warehouse });
     sendJson(res, 200, { ok: true });
   }
 
@@ -165,3 +166,4 @@ class Application {
 }
 
 module.exports = { Application };
+

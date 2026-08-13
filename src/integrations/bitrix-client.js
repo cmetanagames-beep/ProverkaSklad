@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 0.9 seconds
-Output:
 class BitrixClient {
   constructor(webhookBase) { this.webhookBase = webhookBase; this.acceptedVerificationStageId = null; }
   get configured() { return Boolean(this.webhookBase); }

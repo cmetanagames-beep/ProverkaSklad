@@ -6,7 +6,7 @@
   <title>Администрирование — AKFIX</title>
   <link rel="stylesheet" href="/assets/admin.css">
   <link rel="stylesheet" href="/assets/admin-users.css">
-  <style>.check-progress{display:grid;gap:10px;margin-top:16px}.check-step{display:grid;grid-template-columns:34px 1fr;gap:11px;align-items:center;padding:13px;border:1px solid #dbe4e1;border-radius:12px;background:#f7f8f8}.check-step>span{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#e4e8e7;color:#6f7774;font-weight:900}.check-step.ready>span{background:#daf3e9;color:#006b46}.check-step b,.check-step small{display:block}.check-step small{color:#65736f;margin-top:4px}</style>
+  <style>.check-progress{display:grid;gap:10px;margin-top:16px}.check-step{display:grid;grid-template-columns:34px 1fr;gap:11px;align-items:center;padding:13px;border:1px solid #dbe4e1;border-radius:12px;background:#f7f8f8}.check-step>span{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#e4e8e7;color:#6f7774;font-weight:900}.check-step.ready>span{background:#daf3e9;color:#006b46}.check-step b,.check-step small{display:block}.check-step small{color:#65736f;margin-top:4px}.telegram-toolbar{display:flex;justify-content:flex-end;margin-bottom:14px}.telegram-chats{display:grid;gap:12px}.telegram-chat{display:grid;grid-template-columns:48px 1fr auto;gap:14px;align-items:center;padding:17px;background:#fff;border:1px solid #dbe4e1;border-radius:16px}.telegram-chat.current{border-color:#67ad94;background:#f2fbf7}.telegram-icon{width:48px;height:48px;border-radius:13px;display:grid;place-items:center;background:#e9f5f0;color:#006b46;font-size:22px;font-weight:900}.telegram-chat small{display:block;color:#65736f;margin-top:4px}.telegram-chat .primary{width:auto;margin:0;padding:11px 16px}</style>
 </head>
 <body>
   <main class="shell">
@@ -35,7 +35,7 @@
         <div><img src="/assets/logo.svg" alt="AKFIX" class="logo"><span class="admin-badge">АДМИН</span></div>
         <button id="logout" class="ghost">Выйти</button>
       </header>
-      <nav class="admin-tabs"><button class="active" data-tab="ordersPanel">Заказы</button><button data-tab="employeesPanel">Сотрудники</button></nav>
+      <nav class="admin-tabs"><button class="active" data-tab="ordersPanel">Заказы</button><button data-tab="employeesPanel">Сотрудники</button><button data-tab="telegramPanel">Telegram</button></nav>
       <section id="ordersPanel">
       <div class="hero">
         <p class="eyebrow">Панель управления</p>
@@ -47,6 +47,7 @@
       <div id="orders" class="orders"></div>
       </section>
       <section id="employeesPanel" class="hidden"><div class="hero employee-hero"><div><p class="eyebrow">Доступ к приложению</p><h1>Сотрудники</h1><p>Создавайте учётные записи и меняйте имя, склад или PIN-код.</p></div><button id="addEmployee" class="primary compact">Добавить сотрудника</button></div><div id="employees" class="employees"></div></section>
+      <section id="telegramPanel" class="hidden"><div class="hero"><p class="eyebrow">Канал выгрузки</p><h1>Telegram-группа</h1><p>Выберите группу, куда приложение будет отправлять фотографии и результаты проверок.</p></div><div class="telegram-toolbar"><button id="reloadTelegram" class="ghost">Обновить список групп</button></div><div id="telegramChats" class="telegram-chats"><div class="empty">Загрузка групп…</div></div></section>
     </section>
   </main>
 
@@ -56,7 +57,7 @@
     <section class="danger-zone">
       <h3>Фотографии в карточке</h3>
       <p>Очистка удалит все фотографии выбранного склада из поля Bitrix24.</p>
-      <div class="actions"><button data-clear="Мытищи" class="danger-outline">Очистить фото Мытищи</button><button data-clear="Балашиха" class="danger-outline">Очистить фото Балашиха</button></div>
+      <div class="actions"><button data-clear="Мытищи" class="danger-outline">Очистить фото Мытищи</button><button data-clear="Балашиха" class="danger-outline">Очистить фото Балашиха</button><button data-clear="Объединённый груз" class="danger-outline">Очистить объединённый груз</button></div>
     </section>
     <section><div class="section-title"><div><h3>Комментарии таймлайна</h3><p>Можно удалить ошибочную запись, созданную приложением.</p></div><button id="reloadComments" class="ghost">Обновить</button></div><div id="comments"></div></section>
   </dialog>
@@ -65,3 +66,4 @@
   <script src="/assets/admin.js" defer></script>
 </body>
 </html>
+

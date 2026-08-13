@@ -2,12 +2,12 @@ const fs = require('fs/promises');
 const path = require('path');
 
 class TelegramClient {
-  constructor({ token, chatId, settingsFile }) { this.token = token; this.chatId = chatId; this.settingsFile = settingsFile; }
+  constructor({ token, chatId, settingsFile, preferConfiguredChat = false }) { this.token = token; this.chatId = chatId; this.settingsFile = settingsFile; this.preferConfiguredChat = preferConfiguredChat; }
   get configured() { return Boolean(this.token && this.chatId); }
 
   async init() {
     if (!this.settingsFile) return;
-    try { const saved = JSON.parse(await fs.readFile(this.settingsFile, 'utf8')); if (saved.chatId) this.chatId = String(saved.chatId); }
+    try { const saved = JSON.parse(await fs.readFile(this.settingsFile, 'utf8')); if (saved.chatId && !this.preferConfiguredChat) this.chatId = String(saved.chatId); }
     catch (error) { if (error.code !== 'ENOENT') throw error; }
   }
 
@@ -76,3 +76,4 @@ class TelegramClient {
 }
 
 module.exports = { TelegramClient };
+
