@@ -31,6 +31,12 @@ class BitrixClient {
     });
   }
 
+  async updateCombinedPhotos({ orderId, files }) {
+    if (!files.length) return;
+    const field = process.env.BITRIX_COMBINED_PHOTOS_FIELD || 'ufCrm19_1786441124042';
+    return this.call('crm.item.update', { entityTypeId: 1052, id: Number(orderId), fields: { [field]: files.map(file => [file.filename, file.buffer.toString('base64')]) } });
+  }
+
   async listComments(orderId) {
     return this.call('crm.timeline.comment.list', {
       filter: { ENTITY_ID: Number(orderId), ENTITY_TYPE: 'dynamic_1052' },
