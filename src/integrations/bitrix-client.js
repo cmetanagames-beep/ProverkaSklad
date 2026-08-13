@@ -37,6 +37,18 @@ class BitrixClient {
     return this.call('crm.item.update', { entityTypeId: 1052, id: Number(orderId), fields: { [field]: files.map(file => [file.filename, file.buffer.toString('base64')]) } });
   }
 
+  async updateFinalPalletCount({ orderId, euro, american }) {
+    const field = process.env.BITRIX_PALLET_COUNT_FIELD || 'ufCrm19_1752654651418';
+    const euroCount = Number(euro || 0);
+    const americanCount = Number(american || 0);
+    const value = `Европалеты: ${euroCount}; Американские палеты: ${americanCount}; Всего: ${euroCount + americanCount}`;
+    return this.call('crm.item.update', {
+      entityTypeId: 1052,
+      id: Number(orderId),
+      fields: { [field]: value },
+    });
+  }
+
   async listComments(orderId) {
     return this.call('crm.timeline.comment.list', {
       filter: { ENTITY_ID: Number(orderId), ENTITY_TYPE: 'dynamic_1052' },
