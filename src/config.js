@@ -1,3 +1,6 @@
+Exit code: 0
+Wall time: 0.9 seconds
+Output:
 const path = require('path');
 
 function parseUsers(raw) {
@@ -17,6 +20,7 @@ module.exports = {
   bitrixWebhookBase: String(process.env.BITRIX_WEBHOOK_BASE || '').replace(/\/+$/, ''),
   telegramBotToken: String(process.env.TELEGRAM_BOT_TOKEN || ''),
   telegramChatId: String(process.env.TELEGRAM_CHAT_ID || ''),
+  telegramPhotoChatId: String(process.env.TELEGRAM_PHOTO_CHAT_ID || '-1002084123169'),
   telegramSettingsFile: path.resolve(process.env.TELEGRAM_SETTINGS_FILE || path.join(__dirname, '..', 'data', 'telegram.json')),
   sessionSecret: String(process.env.SESSION_SECRET || ''),
   checkStorageDir: path.resolve(process.env.CHECK_STORAGE_DIR || path.join(__dirname, '..', 'data', 'checks')),
@@ -24,3 +28,4 @@ module.exports = {
   userStorageFile: path.resolve(process.env.USER_STORAGE_FILE || path.join(__dirname, '..', 'data', 'users.json')),
   users: parseUsers(process.env.APP_USERS_JSON),
 };
+
