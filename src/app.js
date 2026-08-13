@@ -13,6 +13,7 @@ class Application {
     this.checks = checks;
     this.history = history;
     this.userStore = userStore;
+    this.orderLocks = new Map();
     this.version = process.env.APP_VERSION || `${Date.now()}`;
   }
 
@@ -28,6 +29,9 @@ class Application {
       if (url.pathname === '/api/history' && req.method === 'GET') return this.#history(req, res);
       if (url.pathname === '/api/pending' && req.method === 'GET') return this.#pending(req, res);
       if (url.pathname === '/api/check-status' && req.method === 'GET') return this.#checkStatus(req, res, url);
+      if (url.pathname === '/api/order-locks' && req.method === 'GET') return this.#orderLocks(req, res);
+      if (url.pathname === '/api/order-locks/acquire' && req.method === 'POST') return this.#acquireOrderLock(req, res);
+      if (url.pathname === '/api/order-locks/release' && req.method === 'POST') return this.#releaseOrderLock(req, res);
       if (url.pathname === '/api/admin/comments/list' && req.method === 'POST') return this.#adminListComments(req, res);
       if (url.pathname === '/api/admin/comments/delete' && req.method === 'POST') return this.#adminDeleteComment(req, res);
       if (url.pathname === '/api/admin/photos/clear' && req.method === 'POST') return this.#adminClearPhotos(req, res);
@@ -87,6 +91,38 @@ class Application {
   async #checkStatus(req, res, url) {
     if (!this.#user(req, res)) return;
     sendJson(res, 200, await this.checks.status(url.searchParams.get('orderId')));
+  }
+
+  #activeLocks() {
+    const now = Date.now();
+    for (const [key, lock] of this.orderLocks) if (lock.expiresAt <= now) this.orderLocks.delete(key);
+    return [...this.orderLocks.values()];
+  }
+
+  #orderLocks(req, res) {
+    if (!this.#user(req, res)) return;
+    sendJson(res, 200, { items: this.#activeLocks().map(({ login, ...lock }) => lock) }, { 'Cache-Control': 'no-store' });
+  }
+
+  async #acquireOrderLock(req, res) {
+    const user = this.#user(req, res);
+    if (!user) return;
+    const { orderId } = await readJson(req);
+    const key = `${orderId}:${user.warehouse}`;
+    const current = this.#activeLocks().find(lock => lock.key === key);
+    if (current && current.login !== user.login) return sendJson(res, 409, { error: 'ORDER_BUSY', lock: { employee: current.employee, warehouse: current.warehouse, expiresAt: current.expiresAt } });
+    const lock = { key, orderId: String(orderId), login: user.login, employee: user.name, warehouse: user.warehouse, expiresAt: Date.now() + 90000 };
+    this.orderLocks.set(key, lock);
+    sendJson(res, 200, { ok: true, lock: { orderId: lock.orderId, employee: lock.employee, warehouse: lock.warehouse, expiresAt: lock.expiresAt } });
+  }
+
+  async #releaseOrderLock(req, res) {
+    const user = this.#user(req, res);
+    if (!user) return;
+    const { orderId } = await readJson(req);
+    const key = `${orderId}:${user.warehouse}`;
+    if (this.orderLocks.get(key)?.login === user.login) this.orderLocks.delete(key);
+    sendJson(res, 200, { ok: true });
   }
 
   async #adminListComments(req, res) {
