@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 0.9 seconds
-Output:
 (function(){
   const DB='akfix-offline', STORE='uploads';
   let syncing=null;

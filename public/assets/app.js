@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 0.9 seconds
-Output:
 const WEBHOOK='/api/bitrix/';
   const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
   const PALLET_PHOTO_COUNT=3;
