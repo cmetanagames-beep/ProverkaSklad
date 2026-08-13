@@ -15,7 +15,8 @@ async function main() {
   await userStore.init();
   const sessions = new SessionService({ secret: config.sessionSecret, userStore });
   const bitrix = new BitrixClient(config.bitrixWebhookBase);
-  const telegram = new TelegramClient({ token: config.telegramBotToken, chatId: config.telegramChatId });
+  const telegram = new TelegramClient({ token: config.telegramBotToken, chatId: config.telegramChatId, settingsFile: config.telegramSettingsFile });
+  await telegram.init();
   const multipart = new MultipartReader();
   const pendingChecks = new PendingCheckStore(config.checkStorageDir);
   const history = new HistoryStore(config.historyStorageDir);
