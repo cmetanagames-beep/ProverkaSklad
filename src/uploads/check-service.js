@@ -32,16 +32,26 @@ class CheckService {
     for (const warehouse of ['Балашиха', 'Мытищи']) {
       const check = pair[warehouse];
       if (check.fields.noCargo === 'true') await this.bitrix.clearWarehousePhotos({ orderId, warehouse });
-      else await this.bitrix.updateWarehousePhotos({ orderId, warehouse, files: warehouse === 'Балашиха' && pair.combined ? [...check.files, ...pair.combined.files] : check.files });
+      else await this.bitrix.updateWarehousePhotos({ orderId, warehouse, files: check.files });
     }
     if (pair.combined) await this.bitrix.updateCombinedPhotos({ orderId, files: pair.combined.files });
     status.bitrix = true;
     try {
       const checks = ['Балашиха', 'Мытищи'].map(warehouse => pair[warehouse]);
       let text = checks.map(check => this.#buildText(check.fields, check.user)).join('\n\n');
-      const files = [...checks.flatMap(check => check.files), ...(pair.combined?.files || [])];
-      if (pair.combined) text += '\n\n🔗 ОБЪЕДИНЁННЫЙ ГРУЗ\nСклад: Балашиха\nФото после догруза: добавлены';
-      await this.telegram.sendCheck(text, files);
+      if (pair.combined) text += `\n\nОБЪЕДИНЁННЫЙ ГРУЗ\nСклад: Балашиха\nОбъединил: ${pair.combined.user.name}\nЕвропалеты после объединения: ${pair.combined.fields.euro || 0}\nАмериканские палеты после объединения: ${pair.combined.fields.american || 0}\nВсего после объединения: ${Number(pair.combined.fields.euro || 0) + Number(pair.combined.fields.american || 0)} палет`;
+      const warehouseAlbums = [
+        { title: 'ФОТО СКЛАДА МЫТИЩИ', files: pair['Мытищи'].files },
+        { title: 'ФОТО СКЛАДА БАЛАШИХА', files: pair['Балашиха'].files },
+      ].filter(album => album.files.length);
+      if (!warehouseAlbums.length) await this.telegram.sendCheck(text, []);
+      for (let index = 0; index < warehouseAlbums.length; index++) {
+        await this.telegram.sendCheck(`${index === 0 ? `${text}\n\n` : ''}${warehouseAlbums[index].title}`, warehouseAlbums[index].files);
+      }
+      if (pair.combined) {
+        const total = Number(pair.combined.fields.euro || 0) + Number(pair.combined.fields.american || 0);
+        await this.telegram.sendCheck(`ДОГРУЗ ЗАВЕРШЁН\nЗаказ: ${pair.combined.fields.orderTitle || pair.combined.fields.orderNumber}\nОбъединил: ${pair.combined.user.name}\nПосле объединения получилось: ${total} палет\n\nФОТО ОБЪЕДИНЁННОГО ГРУЗА`, pair.combined.files);
+      }
       status.telegram = true;
       await this.bitrix.moveToAcceptedVerification(orderId);
       status.stageChanged = true;
@@ -60,9 +70,9 @@ class CheckService {
     if (fields.noCargo !== 'true' && !files.length) throw new Error('PHOTOS_REQUIRED');
     if (fields.noCargo !== 'true') {
       const palletCount = Number(fields.euro || 0) + Number(fields.american || 0);
-      const requiredShots = new Set(['angle1', 'angle2', 'top', 'product1', 'product2']);
+      const requiredShots = new Set(['side1', 'side2', 'top']);
       for (let pallet = 1; pallet <= palletCount; pallet++) {
-        const present = new Set(files.map(file => file.filename.match(new RegExp(`^pallet-${pallet}-(angle1|angle2|top|product1|product2)-`))?.[1]).filter(Boolean));
+        const present = new Set(files.map(file => file.filename.match(new RegExp(`^pallet-${pallet}-(side1|side2|top)-`))?.[1]).filter(Boolean));
         if ([...requiredShots].some(shot => !present.has(shot))) throw new Error(`PALLET_PHOTOS_INCOMPLETE:${pallet}`);
       }
     }
@@ -70,8 +80,8 @@ class CheckService {
 
   #buildText(fields, user) {
     const title = fields.orderTitle || fields.orderNumber;
-    const lines = ['📦 ПРОВЕРКА СКЛАДА', `Заказ: ${title}`, `Склад: ${user.warehouse}`, `Проверил: ${user.name}`];
-    if (fields.noCargo === 'true') lines.push(`Товара нет на складе ${user.warehouse}`);
+    const lines = [`Заказ: ${title}`, `Склад: ${user.warehouse}`, `Проверил: ${user.name}`];
+    if (fields.noCargo === 'true') lines.push(`На складе ${user.warehouse} товара нет`);
     else lines.push(`Европалеты: ${fields.euro || 0}`, `Американские палеты: ${fields.american || 0}`, `Всего палет: ${Number(fields.euro || 0) + Number(fields.american || 0)}`);
     if (fields.specialB === 'true') lines.push('Особый товар: Б — бракованный');
     if (fields.specialP === 'true') lines.push('Особый товар: П — перебитый');
