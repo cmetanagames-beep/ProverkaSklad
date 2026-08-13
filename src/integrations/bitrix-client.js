@@ -1,3 +1,6 @@
+Exit code: 0
+Wall time: 0.9 seconds
+Output:
 class BitrixClient {
   constructor(webhookBase) { this.webhookBase = webhookBase; this.acceptedVerificationStageId = null; }
   get configured() { return Boolean(this.webhookBase); }
@@ -75,6 +78,13 @@ class BitrixClient {
     });
   }
 
+  async clearCombinedPhotos(orderId) {
+    const field = process.env.BITRIX_COMBINED_PHOTOS_FIELD || 'ufCrm19_1786441124042';
+    return this.call('crm.item.update', {
+      entityTypeId: 1052, id: Number(orderId), fields: { [field]: [] },
+    });
+  }
+
   async moveToAcceptedVerification(orderId) {
     if (!this.acceptedVerificationStageId) {
       const stages = await this.call('crm.status.list', { filter: { ENTITY_ID: 'DYNAMIC_1052_STAGE_31' } });
@@ -95,3 +105,4 @@ class BitrixClient {
 }
 
 module.exports = { BitrixClient };
+
