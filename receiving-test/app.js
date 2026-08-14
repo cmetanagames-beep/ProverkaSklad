@@ -6,7 +6,6 @@ const app=document.querySelector('#app');
 let scannerStream=null,scannerFrame=0,scannerControls=null,scanAllocation=null;
 
 const esc=(s='')=>String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
-const excelEsc=(s='')=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const formatDate=value=>{if(!value)return'';const[y,m]=value.split('-');return`${m}.${y}`};
 const columnIndex=ref=>{let n=0;for(const c of ref.match(/[A-Z]+/i)?.[0]||'')n=n*26+c.toUpperCase().charCodeAt(0)-64;return n-1};
 const cleanPath=value=>{const parts=[];for(const part of value.replace(/^\//,'').split('/'))part==='..'?parts.pop():part!=='.'&&parts.push(part);return parts.join('/')};
@@ -65,11 +64,14 @@ function renderUpload(){
 function allocation(a,j,total){return`<section class="allocation"><h3>Размещение ${total>1?j+1:''}${total>1?`<button class="remove" data-remove="${j}">Удалить</button>`:''}</h3><div class="grid"><label class="field">Фактически принято<input inputmode="numeric" data-key="qty" data-a="${j}" value="${esc(a.qty)}"></label><label class="field">Срок годности (месяц и год)<input type="month" data-key="date" data-a="${j}" value="${esc(a.date)}"></label><label class="field">Ячейка хранения<span class="cell-control"><input data-key="cell" data-a="${j}" placeholder="Например, A-01-03" value="${esc(a.cell)}"><button type="button" class="scan-cell" data-scan="${j}" aria-label="Сканировать ячейку">⌗</button></span></label><label class="field full">Комментарий<input data-key="comment" data-a="${j}" placeholder="Необязательно" value="${esc(a.comment)}"></label></div></section>`}
 
 function exportExcel(){
- const rows=[];state.rows.forEach((row,i)=>row.alloc.forEach(a=>rows.push([products[i].name,products[i].article,formatDate(a.date),Number(a.qty),'шт',a.cell])));
- const cell=(value,type='String')=>`<Cell><Data ss:Type="${type}">${excelEsc(value)}</Data></Cell>`;
- const body=[['Номенклатура','Артикул','Серия','Количество','Упаковка','Ячейка'],...rows].map((r,ri)=>`<Row>${r.map((v,ci)=>cell(v,ri>0&&ci===3?'Number':'String')).join('')}</Row>`).join('');
- const xml=`<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Товары"><Table><Column ss:Width="330"/><Column ss:Width="90"/><Column ss:Width="170"/><Column ss:Width="90"/><Column ss:Width="90"/><Column ss:Width="120"/>${body}</Table></Worksheet></Workbook>`;
- const blob=new Blob([xml],{type:'application/vnd.ms-excel;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`${shipmentName} - приёмка.xls`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Excel-файл сформирован');
+ if(!window.XLSX)return toast('Модуль Excel не загрузился — обновите страницу');
+ const rows=[['Номенклатура','Артикул','Серия','Количество','Упаковка','Ячейка']];
+ state.rows.forEach((row,i)=>row.alloc.forEach(a=>rows.push([products[i].name,products[i].article,formatDate(a.date),Number(a.qty),'шт',a.cell])));
+ const sheet=XLSX.utils.aoa_to_sheet(rows),workbook=XLSX.utils.book_new();
+ sheet['!cols']=[{wch:58},{wch:18},{wch:14},{wch:14},{wch:12},{wch:20}];
+ XLSX.utils.book_append_sheet(workbook,sheet,'Товары');
+ XLSX.writeFileXLSX(workbook,`${shipmentName} - приёмка.xlsx`,{compression:true});
+ toast('Файл Excel .xlsx сформирован');
 }
 
 function render(){
