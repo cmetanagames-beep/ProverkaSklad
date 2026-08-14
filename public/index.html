@@ -69,8 +69,9 @@
   <section class="screen series-screen" data-screen="series">
     <div class="steps"><span class="step done" data-n="1">Склад</span><span class="step done" data-n="2">Палеты</span><span class="step done" data-n="3">Выбор</span><span class="step on" data-n="4">Фото</span></div>
     <div class="capture-head"><div><h1>Серия фото</h1><span class="stage" id="seriesPallet">Палета 1</span></div><div class="big-progress" id="seriesProgress">0/3</div></div>
-    <div class="series-card"><span id="seriesNumber">Фото 1</span><h2 id="seriesTitle">Первая сторона палеты</h2><p id="seriesHint">Снимите палету целиком</p></div>
-    <label class="series-camera primary" id="seriesCameraButton">Сделать фото 1 из 3<input id="seriesCameraInput" type="file" accept="image/*" capture="environment" hidden></label>
+    <div class="series-camera-view" id="seriesCameraView"><video id="seriesVideo" playsinline muted></video><div class="series-guide"><span id="seriesNumber">Фото 1</span><b id="seriesTitle">Первая сторона палеты</b><small id="seriesHint">Снимите палету целиком</small></div><button class="series-shutter" id="seriesShutter" hidden aria-label="Сделать фото"></button></div>
+    <button class="primary" id="seriesOpenCamera">Открыть камеру</button>
+    <label class="series-camera primary" id="seriesCameraFallback" hidden>Сделать фото<input id="seriesCameraInput" type="file" accept="image/*" capture="environment" hidden></label>
     <button class="secondary" id="seriesDone" hidden>Вернуться к палетам</button>
     <label class="series-label-option"><input type="checkbox" id="seriesLabels"><span><b>Снимать палетные этикетки</b><small>После трёх фото каждой палеты приложение попросит снять её этикетку.</small></span></label>
   </section>
