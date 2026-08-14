@@ -55,25 +55,17 @@
   <section class="screen with-rail" data-screen="pallets">
     <div class="rail"><span class="done">✓</span><span class="done">✓</span><span class="done">✓</span><span class="on">4</span></div>
     <div class="steps"><span class="step done" data-n="1">Склад</span><span class="step done" data-n="2">Палеты</span><span class="step on" data-n="3">Выбор</span><span class="step" data-n="4">Фото</span></div>
-    <h1>Фотографии палет</h1><p class="sub">Снимайте палеты подряд — приложение само откроет следующую.</p><button class="primary continuous-start" id="startContinuous">Начать серию фото</button>
-    <div class="tip" id="palletCoach"><span class="tip-icon">1</span><span><b>Как работает серия?</b><small>Нажимайте одну кнопку съёмки. Каждые три кадра автоматически сохраняются в следующую палету.</small></span><button class="tip-close" id="closeCoach">×</button></div>
+    <h1>Фотографии палет</h1><p class="sub">Откройте палету и добавьте три обязательных фотографии.</p>
+    <label class="series-label-option"><input type="checkbox" id="palletLabels"><span><b>Палетные этикетки</b><small>В каждой палете добавится одно дополнительное фото этикетки.</small></span></label>
+    <div class="tip" id="palletCoach"><span class="tip-icon">1</span><span><b>Как фотографировать?</b><small>Откройте палету, сделайте фотографии и вернитесь к списку. Затем откройте следующую.</small></span><button class="tip-close" id="closeCoach">×</button></div>
     <div class="pallet-list" id="pallets"></div>
     <div class="sticky"><button class="primary" id="finish" disabled>Сохранить проверку</button><p class="note">Общая выгрузка выполнится после проверки двух складов</p></div>
   </section>
   <section class="screen" data-screen="capture">
     <div class="steps"><span class="step done" data-n="1">Склад</span><span class="step done" data-n="2">Палеты</span><span class="step done" data-n="3">Выбор</span><span class="step on" data-n="4">Фото</span></div>
     <div class="capture-head"><div><h1 id="captureTitle">Палета 1</h1><span class="stage" id="captureType">Европалета</span></div><div class="big-progress" id="captureProgress">0/5</div></div>
-    <p class="sub">Три обязательных фото сохраняются в текущую палету. Дополнительных фото может быть сколько угодно.</p><div class="capture-list" id="captureList"></div><div class="capture-add"><button class="secondary" id="addLabelPhoto">+ Палетная этикетка</button><button class="secondary" id="addExtraPhoto">+ Дополнительное фото</button></div><div class="tip amber"><span class="tip-icon">!</span><span><b>Вся палета должна быть в кадре</b><small>На первых двух фото видны противоположные стороны, на третьем — палета сверху.</small></span></div><button class="secondary" data-help>Как фотографировать?</button>
-    <div class="sticky"><button class="primary" id="savePallet" disabled>Следующая палета</button><p class="why" id="saveWhy">Добавьте все 3 фотографии</p></div>
-  </section>
-  <section class="screen series-screen" data-screen="series">
-    <div class="steps"><span class="step done" data-n="1">Склад</span><span class="step done" data-n="2">Палеты</span><span class="step done" data-n="3">Выбор</span><span class="step on" data-n="4">Фото</span></div>
-    <div class="capture-head"><div><h1>Серия фото</h1><span class="stage" id="seriesPallet">Палета 1</span></div><div class="big-progress" id="seriesProgress">0/3</div></div>
-    <div class="series-camera-view" id="seriesCameraView"><video id="seriesVideo" playsinline muted></video><div class="series-guide"><span id="seriesNumber">Фото 1</span><b id="seriesTitle">Первая сторона палеты</b><small id="seriesHint">Снимите палету целиком</small></div><button class="series-shutter" id="seriesShutter" hidden aria-label="Сделать фото"></button></div>
-    <button class="primary" id="seriesOpenCamera">Открыть камеру</button>
-    <label class="series-camera primary" id="seriesCameraFallback" hidden>Сделать фото<input id="seriesCameraInput" type="file" accept="image/*" capture="environment" hidden></label>
-    <button class="secondary" id="seriesDone" hidden>Вернуться к палетам</button>
-    <label class="series-label-option"><input type="checkbox" id="seriesLabels"><span><b>Добавить фото палетной этикетки</b><small>К серии добавится один последний кадр.</small></span></label>
+    <p class="sub">Три обязательных фото сохраняются в текущую палету. Дополнительных фото может быть сколько угодно.</p><div class="capture-list" id="captureList"></div><div class="capture-add"><button class="secondary" id="addExtraPhoto">+ Дополнительное фото</button></div><div class="tip amber"><span class="tip-icon">!</span><span><b>Вся палета должна быть в кадре</b><small>На первых двух фото видны противоположные стороны, на третьем — палета сверху.</small></span></div><button class="secondary" data-help>Как фотографировать?</button>
+    <div class="sticky"><button class="primary" id="savePallet" disabled>Сохранить палету</button><p class="why" id="saveWhy">Добавьте все 3 фотографии</p></div>
   </section>
   <section class="screen" data-screen="success"><div class="success"><div class="success-icon">✓</div><h1>Проверка выгружена</h1><p class="sub">Фотографии и данные отправлены в Bitrix24 и Telegram.</p><div class="summary" id="summary"></div><button class="secondary" id="again">Вернуться к заказам</button></div></section>
   <section class="screen receiving-screen" data-screen="receiving"><iframe id="receivingFrame" src="/receiving-test/?embedded=1" title="Приёмка товаров" allow="camera"></iframe></section>
