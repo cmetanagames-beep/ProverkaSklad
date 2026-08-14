@@ -1,38 +1,38 @@
-# Design QA — нативные вкладки и иконка
+# Design QA — вариант 2 «Конвейер»
 
-- Source visual truth: `C:\Users\Akfix\AppData\Local\Temp\codex-clipboard-6acd6c9c-6df8-4535-9e57-7f5a381b4f1b.png` and the user's requirement for a single white A on red.
-- Implementation icon: `public/assets/app-icon-512.png` (512 × 512 px) and `public/assets/app-icon-192.png` (192 × 192 px).
-- Combined icon comparison: `C:\Users\Akfix\AppData\Local\Temp\akfix-icon-comparison.png`.
-- Rendered implementation: `C:\Users\Akfix\AppData\Local\Temp\akfix-native-receiving-mobile.png`.
+- Source visual truth: `C:\Users\Akfix\.codex\generated_images\019ffb4b-e4fb-7c32-9589-90091dd676c7\exec-90939821-4d11-4170-b2d1-f21759b1dfbc.png`.
+- Implementation screenshot: `C:\Users\Akfix\.codex\visualizations\2026\08\13\019ffb4b-e4fb-7c32-9589-90091dd676c7\pallet-design-2-mobile.png`.
+- Combined comparison: `C:\Users\Akfix\.codex\visualizations\2026\08\13\019ffb4b-e4fb-7c32-9589-90091dd676c7\pallet-design-2-comparison.png`.
 - Viewport: 390 × 844 CSS px, device scale factor 1.
-- State: authenticated main app, Receiving tab selected.
+- Source pixels: 852 × 1844. Implementation full-page pixels: 390 × 963. Both normalized to 1000 px height for the combined comparison.
+- State: pallet list, pallet-label checkbox enabled; empty, partial and completed pallet states visible.
 
 ## Full-view comparison evidence
 
-The Receiving view now remains inside the existing application shell. The URL stays unchanged when moving from Orders to Receiving, the shared header and bottom navigation remain mounted, and the entering screen uses the `tab-in` animation. The mobile screenshot shows no duplicate header/navigation, white page flash, horizontal overflow, or clipped primary action.
+The implementation preserves the selected visual hierarchy: AKFIX header, red conveyor steps, global label-photo checkbox, red numbered pallet strips, four progress dots, red incomplete states and turquoise completed state. The implementation uses real pallet type and index instead of the illustrative customer/order data in the concept.
 
 ## Focused comparison evidence
 
-The icon comparison verifies the original AKFIX red direction while adapting the wide wordmark to a legible square application mark. The final asset contains one centered white A with no detached bars, slogan, or secondary shapes.
+The mobile capture makes the type, checkbox copy, 0/4 and 2/4 counters, dot progression, arrow affordance and completed turquoise row readable without clipping. A separate crop was unnecessary because all critical controls remain legible in the normalized full comparison.
 
 ## Required fidelity surfaces
 
-- Typography: existing application typography is unchanged; the icon uses a heavy geometric A that remains legible at 192 px and below.
-- Spacing/layout: the receiving iframe fills the existing shell between the persistent header and bottom navigation.
-- Colors/tokens: icon background uses AKFIX red `#CF0A2C`; the app retains its red/turquoise tokens.
-- Image quality: dedicated 192 px and 512 px optimized PNG assets are supplied; the wide header logo remains the original SVG.
-- Copy/content: Receiving copy is preserved; new photo controls use explicit Russian labels.
+- Fonts and typography: condensed system stack, bold uppercase heading and large pallet numbers match the industrial hierarchy; no harmful wrapping at 390 px.
+- Spacing and layout rhythm: full-width conveyor steps and joined list rows match the reference; glove-sized rows are at least 126 px high.
+- Colors and tokens: AKFIX red, white, charcoal and turquoise completion states match the selected direction.
+- Image quality and assets: the supplied AKFIX SVG remains sharp; no mock pallet/customer imagery is shipped.
+- Copy and content: real workflow copy is retained. The checkbox adds one fourth label photo to every pallet.
 
-## Interaction evidence
+## Interaction and console evidence
 
-- Orders → Receiving keeps the same `/` URL and activates the Receiving tab.
-- Receiving content loads embedded in the main shell.
-- Entry animation reports `tab-in`.
-- Photo workflow supports three required photos, one pallet-label photo, and unlimited extra-photo slots.
-- “Next pallet” advances to the next incomplete pallet without returning to the pallet list.
+- Browser-rendered mobile viewport loaded with meaningful content and no framework overlay.
+- Console errors/warnings: none on the isolated rendered pallet state.
+- Row-entry, active press, dot-fill and completed-state animations are implemented with reduced-motion compatibility inherited from the app.
+- Primary interaction remains: open one pallet, add photos, save, return to the list.
 
-## Findings
+## Comparison history
 
-No actionable P0/P1/P2 visual differences remain. Camera permission and real file capture require a physical HTTPS phone and remain a device-level verification item.
+- Initial implementation used the selected structure but required explicit 390 px recapture; viewport was corrected and verified.
+- No remaining actionable P0/P1/P2 differences. The shorter QA fixture intentionally shows three rows instead of five; production renders the actual pallet count.
 
 final result: passed
