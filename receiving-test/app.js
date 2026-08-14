@@ -60,7 +60,7 @@ async function loadFile(file){
 }
 
 function renderUpload(){
- app.innerHTML=`<div class="shell upload-shell"><header class="top"><span></span><h1>Приёмка</h1><span></span></header><section class="upload"><div class="upload-icon">⇧</div><h2>Загрузите файл для приёмки</h2><p>Выберите полученный Excel-файл. Данные обрабатываются только на этом устройстве.</p><label class="upload-button">Выбрать Excel<input id="fileInput" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label><small id="uploadState">Поддерживается формат .xlsx</small></section></div>`;
+ app.innerHTML=`<div class="shell upload-shell"><header class="brand-head"><a href="/" aria-label="Вернуться к заказам"><img src="/assets/logo.svg" alt="Akfix"></a><div class="brand-user"><span>П</span><b>Приёмка</b></div></header><section class="upload-page"><div class="page-kicker">Складской учёт</div><h1>Приёмка товаров</h1><p class="page-sub">Загрузите файл от поставщика и начните приёмку</p><div class="upload-card"><div class="upload-icon" aria-hidden="true"></div><h2>Загрузите файл для приёмки</h2><p>Выберите полученный Excel-файл. Данные обрабатываются только на этом устройстве.</p><label class="upload-button">Выбрать Excel<input id="fileInput" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label><small id="uploadState">Поддерживается формат .xlsx</small></div></section></div>`;
  document.querySelector('#fileInput').onchange=e=>loadFile(e.target.files[0]);
 }
 
