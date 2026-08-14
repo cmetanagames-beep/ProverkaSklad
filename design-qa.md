@@ -34,6 +34,7 @@ The mobile capture makes the type, checkbox copy, 0/4 and 2/4 counters, dot prog
 
 - Initial implementation used the selected structure but required explicit 390 px recapture; viewport was corrected and verified.
 - Unified-workflow follow-up applied the same conveyor steps, red uppercase hierarchy, square controls and turquoise totals to Special, Setup and Capture. The Setup screen was recaptured at 390 × 844 with no clipping or console errors.
+- The pallet capture follow-up replaces three clickable photo rows with one primary «Сделать 3 фото» action and a non-interactive instruction list. The new capture screen was rendered at 390 × 844 with the disabled save state visible, meaningful DOM content and no console errors.
 - No remaining actionable P0/P1/P2 differences. The shorter QA fixture intentionally shows three rows instead of five; production renders the actual pallet count.
 
 final result: passed
