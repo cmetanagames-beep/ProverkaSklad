@@ -12,3 +12,4 @@ body{background:linear-gradient(135deg,#eeeeef 0%,#f8f8f8 52%,#e9f7f4 100%);colo
 .finish{bottom:72px;width:min(620px,100%)}#toast{bottom:96px}
 @media(min-width:700px){body{padding:24px}.shell{min-height:calc(100dvh - 48px);border-radius:22px}.brand-head{border-radius:22px 22px 0 0}.bottom-nav{bottom:24px;border-radius:0 0 22px 22px}.finish{bottom:96px}}
 @media(max-width:520px){.upload-page{padding:22px 16px 98px}.upload-card{min-height:330px;padding:28px 18px}.upload-card h2{font-size:22px}.brand-head{padding-left:16px;padding-right:16px}}
+.embedded body{padding:0;background:#f7f7f8}.embedded .brand-head,.embedded .bottom-nav{display:none}.embedded .shell{width:100%;max-width:none;min-height:100dvh;border:0;border-radius:0;box-shadow:none;padding-bottom:24px}.embedded .upload-page{padding-top:24px;padding-bottom:28px}.embedded .upload-card{min-height:330px}.embedded .finish{bottom:0}.embedded #toast{bottom:24px}

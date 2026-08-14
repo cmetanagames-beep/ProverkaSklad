@@ -1,41 +1,38 @@
-# Design QA — Приёмка
+# Design QA — нативные вкладки и иконка
 
-- Source visual truth: `C:\Users\Akfix\AppData\Local\Temp\codex-clipboard-9be8dae5-f32f-4890-af9b-47cd0bddbf23.png`
-- Implementation: `qa-receiving-desktop.png`, `qa-receiving-mobile.png`
-- Combined comparison: `qa-comparison.png`
-- Desktop viewport: 717 × 1243 CSS px, device scale factor 1
-- Mobile viewport: 390 × 844 CSS px, device scale factor 1
-- State: empty receiving screen before Excel upload
+- Source visual truth: `C:\Users\Akfix\AppData\Local\Temp\codex-clipboard-6acd6c9c-6df8-4535-9e57-7f5a381b4f1b.png` and the user's requirement for a single white A on red.
+- Implementation icon: `public/assets/app-icon-512.png` (512 × 512 px) and `public/assets/app-icon-192.png` (192 × 192 px).
+- Combined icon comparison: `C:\Users\Akfix\AppData\Local\Temp\akfix-icon-comparison.png`.
+- Rendered implementation: `C:\Users\Akfix\AppData\Local\Temp\akfix-native-receiving-mobile.png`.
+- Viewport: 390 × 844 CSS px, device scale factor 1.
+- State: authenticated main app, Receiving tab selected.
 
 ## Full-view comparison evidence
 
-The implementation now uses the same 620 px application shell, desktop page margins, AKFIX logo, red/turquoise header rule, light gray canvas, typography hierarchy, card styling, and three-item bottom navigation as the source application. The receiving-specific upload card intentionally replaces the source order list.
+The Receiving view now remains inside the existing application shell. The URL stays unchanged when moving from Orders to Receiving, the shared header and bottom navigation remain mounted, and the entering screen uses the `tab-in` animation. The mobile screenshot shows no duplicate header/navigation, white page flash, horizontal overflow, or clipped primary action.
 
-## Focused region comparison evidence
+## Focused comparison evidence
 
-Header and bottom navigation were inspected in the combined image. Logo size, shell edge alignment, active navigation treatment, border colors, corner radii, and desktop/mobile placement are consistent. A separate focused crop was not required because these regions remain clearly readable at the comparison resolution.
+The icon comparison verifies the original AKFIX red direction while adapting the wide wordmark to a legible square application mark. The final asset contains one centered white A with no detached bars, slogan, or secondary shapes.
 
 ## Required fidelity surfaces
 
-- Fonts and typography: same condensed Arial-family stack and comparable weights/hierarchy.
-- Spacing and layout rhythm: same shell width, 24 px desktop canvas inset, header height, content padding, bottom navigation placement, radii, and shadow language.
-- Colors and visual tokens: matched AKFIX red, turquoise, white, gray background, and muted text palette.
-- Image quality and asset fidelity: the original `/assets/logo.svg` is reused without rasterization or approximation.
-- Copy and content: receiving-specific copy is retained and the visible upload action remains unambiguous.
+- Typography: existing application typography is unchanged; the icon uses a heavy geometric A that remains legible at 192 px and below.
+- Spacing/layout: the receiving iframe fills the existing shell between the persistent header and bottom navigation.
+- Colors/tokens: icon background uses AKFIX red `#CF0A2C`; the app retains its red/turquoise tokens.
+- Image quality: dedicated 192 px and 512 px optimized PNG assets are supplied; the wide header logo remains the original SVG.
+- Copy/content: Receiving copy is preserved; new photo controls use explicit Russian labels.
 
-## Comparison history
+## Interaction evidence
 
-1. P1: desktop bottom navigation was detached from the application shell because the shell stopped at 900 px. Fixed by sizing the desktop shell to `calc(100dvh - 48px)` and recaptured at the same viewport.
-2. Post-fix evidence: `qa-receiving-desktop.png` and `qa-comparison.png` show the navigation attached to the shell with no large gap. Mobile capture shows no horizontal overflow or clipped controls.
-
-## Interaction and runtime checks
-
-- Primary upload input is visible and enabled.
-- Orders, Receiving, and History navigation links are present.
-- Browser console errors/warnings: none.
+- Orders → Receiving keeps the same `/` URL and activates the Receiving tab.
+- Receiving content loads embedded in the main shell.
+- Entry animation reports `tab-in`.
+- Photo workflow supports three required photos, one pallet-label photo, and unlimited extra-photo slots.
+- “Next pallet” advances to the next incomplete pallet without returning to the pallet list.
 
 ## Findings
 
-No actionable P0/P1/P2 visual differences remain. The upload page is intentionally less dense than the orders page because it represents an empty state.
+No actionable P0/P1/P2 visual differences remain. Camera permission and real file capture require a physical HTTPS phone and remain a device-level verification item.
 
 final result: passed
