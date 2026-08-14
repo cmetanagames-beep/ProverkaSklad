@@ -21,10 +21,9 @@ async function main() {
   const pendingChecks = new PendingCheckStore(config.checkStorageDir);
   const history = new HistoryStore(config.historyStorageDir);
   const checks = new CheckService({ bitrix, telegram, pendingChecks, history });
-  const app = new Application({ publicDir: config.publicDir, sessions, bitrix, multipart, checks, history, userStore });
+  const app = new Application({ publicDir: config.publicDir, receivingTestDir: config.receivingTestDir, sessions, bitrix, multipart, checks, history, userStore });
   http.createServer((req, res) => app.handle(req, res))
     .listen(config.port, '0.0.0.0', () => console.log(`ProverkaSklad listening on 0.0.0.0:${config.port}`));
 }
 
 main().catch(error => { console.error(error); process.exit(1); });
-
