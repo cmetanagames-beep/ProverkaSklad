@@ -5,8 +5,9 @@ const { sendJson, readJson } = require('./http/response');
 const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.webmanifest':'application/manifest+json','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml'};
 
 class Application {
-  constructor({ publicDir, sessions, bitrix, multipart, checks, history, userStore }) {
+  constructor({ publicDir, receivingTestDir, sessions, bitrix, multipart, checks, history, userStore }) {
     this.publicDir = publicDir;
+    this.receivingTestDir = receivingTestDir;
     this.sessions = sessions;
     this.bitrix = bitrix;
     this.multipart = multipart;
@@ -42,6 +43,7 @@ class Application {
       if (url.pathname === '/api/admin/telegram/chats' && req.method === 'GET') return this.#adminTelegramChats(req, res);
       if (url.pathname === '/api/admin/telegram/select' && req.method === 'POST') return this.#adminTelegramSelect(req, res);
       if (url.pathname.startsWith('/api/bitrix/') && req.method === 'POST') return this.#proxyBitrix(req, res, url.pathname.slice('/api/bitrix/'.length));
+      if (url.pathname === '/receiving-test') { res.writeHead(308, { Location: '/receiving-test/' }); return res.end(); }
       return this.#static(req, res, url.pathname);
     } catch (error) {
       console.error(error);
@@ -190,9 +192,13 @@ class Application {
 
   #static(req, res, pathname) {
     if (!['GET','HEAD'].includes(req.method)) return sendJson(res, 405, { error: 'METHOD_NOT_ALLOWED' });
-    const relative = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).replace(/^\/+/, '');
-    const file = path.resolve(this.publicDir, relative);
-    if (!file.startsWith(this.publicDir + path.sep)) return sendJson(res, 403, { error: 'FORBIDDEN' });
+    const isReceivingTest = pathname === '/receiving-test' || pathname.startsWith('/receiving-test/');
+    const baseDir = isReceivingTest ? this.receivingTestDir : this.publicDir;
+    const relative = isReceivingTest
+      ? (pathname === '/receiving-test' || pathname === '/receiving-test/' ? 'index.html' : decodeURIComponent(pathname.slice('/receiving-test/'.length)))
+      : (pathname === '/' ? 'index.html' : decodeURIComponent(pathname).replace(/^\/+/, ''));
+    const file = path.resolve(baseDir, relative);
+    if (file !== baseDir && !file.startsWith(baseDir + path.sep)) return sendJson(res, 403, { error: 'FORBIDDEN' });
     fs.readFile(file, (error, data) => {
       if (error) return sendJson(res, error.code === 'ENOENT' ? 404 : 500, { error: 'NOT_FOUND' });
       res.writeHead(200, { 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
@@ -202,4 +208,3 @@ class Application {
 }
 
 module.exports = { Application };
-

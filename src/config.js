@@ -14,6 +14,7 @@ function parseUsers(raw) {
 module.exports = {
   port: Number(process.env.PORT || 8787),
   publicDir: path.resolve(__dirname, '..', 'public'),
+  receivingTestDir: path.resolve(__dirname, '..', 'receiving-test'),
   bitrixWebhookBase: String(process.env.BITRIX_WEBHOOK_BASE || '').replace(/\/+$/, ''),
   telegramBotToken: String(process.env.TELEGRAM_BOT_TOKEN || ''),
   telegramChatId: String(process.env.TELEGRAM_CHAT_ID || ''),
@@ -25,4 +26,3 @@ module.exports = {
   userStorageFile: path.resolve(process.env.USER_STORAGE_FILE || path.join(__dirname, '..', 'data', 'users.json')),
   users: parseUsers(process.env.APP_USERS_JSON),
 };
-
