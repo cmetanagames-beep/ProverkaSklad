@@ -3,7 +3,7 @@ let shipmentName='';
 let storageKey='';
 const state={open:0,query:'',complete:false,rows:[]};
 const app=document.querySelector('#app');
-let scannerStream=null,scannerFrame=0,scanAllocation=null;
+let scannerStream=null,scannerFrame=0,scannerControls=null,scanAllocation=null;
 
 const esc=(s='')=>String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 const excelEsc=(s='')=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
@@ -87,10 +87,15 @@ function wire(){
  const finish=document.querySelector('#finish');if(finish)finish.onclick=()=>{state.complete=true;render()};
 }
 
-function stopScanner(){cancelAnimationFrame(scannerFrame);scannerFrame=0;scannerStream?.getTracks().forEach(track=>track.stop());scannerStream=null;document.querySelector('#scannerVideo').srcObject=null;document.querySelector('#scanner').hidden=true}
+function stopScanner(){cancelAnimationFrame(scannerFrame);scannerFrame=0;scannerControls?.stop?.();scannerControls=null;scannerStream?.getTracks().forEach(track=>track.stop());scannerStream=null;document.querySelector('#scannerVideo').srcObject=null;document.querySelector('#scanner').hidden=true}
+function acceptScannedCell(value){const cell=String(value||'').trim();if(!cell)return;state.rows[state.open].alloc[scanAllocation].cell=cell;persist();stopScanner();render();toast(`Ячейка: ${cell}`)}
 async function startScanner(allocationIndex){
- if(!('BarcodeDetector'in window))return toast('Сканер не поддерживается этим браузером — введите ячейку вручную');scanAllocation=allocationIndex;const overlay=document.querySelector('#scanner'),video=document.querySelector('#scannerVideo'),hint=document.querySelector('#scannerHint');overlay.hidden=false;hint.textContent='Запрашиваем доступ к камере…';
- try{const formats=await BarcodeDetector.getSupportedFormats(),wanted=['qr_code','code_128','code_39','ean_13','ean_8','data_matrix'].filter(x=>formats.includes(x)),detector=new BarcodeDetector(wanted.length?{formats:wanted}:undefined);scannerStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});video.srcObject=scannerStream;await video.play();hint.textContent='Наведите камеру на QR-код или штрихкод ячейки';const detect=async()=>{if(!scannerStream)return;try{const codes=await detector.detect(video);if(codes[0]?.rawValue){state.rows[state.open].alloc[scanAllocation].cell=codes[0].rawValue.trim();persist();stopScanner();render();toast(`Ячейка: ${codes[0].rawValue.trim()}`);return}}catch{}scannerFrame=requestAnimationFrame(detect)};detect()}catch(error){stopScanner();toast(error.name==='NotAllowedError'?'Разрешите доступ к камере':'Не удалось открыть камеру')}
+ scanAllocation=allocationIndex;const overlay=document.querySelector('#scanner'),video=document.querySelector('#scannerVideo'),hint=document.querySelector('#scannerHint');overlay.hidden=false;hint.textContent='Запрашиваем доступ к камере…';
+ try{
+  if('BarcodeDetector'in window){const formats=await BarcodeDetector.getSupportedFormats(),wanted=['qr_code','code_128','code_39','ean_13','ean_8','data_matrix'].filter(x=>formats.includes(x)),detector=new BarcodeDetector(wanted.length?{formats:wanted}:undefined);scannerStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});video.srcObject=scannerStream;await video.play();hint.textContent='Наведите камеру на QR-код или штрихкод ячейки';const detect=async()=>{if(!scannerStream)return;try{const codes=await detector.detect(video);if(codes[0]?.rawValue)return acceptScannedCell(codes[0].rawValue)}catch{}scannerFrame=requestAnimationFrame(detect)};return detect()}
+  if(window.ZXingBrowser){hint.textContent='Наведите камеру на QR-код или штрихкод ячейки';const reader=new ZXingBrowser.BrowserMultiFormatReader();scannerControls=await reader.decodeFromConstraints({video:{facingMode:{ideal:'environment'}},audio:false},video,result=>{if(result?.getText())acceptScannedCell(result.getText())});return}
+  stopScanner();toast('Не удалось загрузить сканер — введите ячейку вручную');
+ }catch(error){stopScanner();toast(error.name==='NotAllowedError'?'Разрешите доступ к камере':'Не удалось открыть камеру')}
 }
 
 document.querySelector('#closeScanner').onclick=stopScanner;document.querySelector('#scanner').onclick=e=>{if(e.target.id==='scanner')stopScanner()};addEventListener('pagehide',stopScanner);render();
