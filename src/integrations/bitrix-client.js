@@ -1,5 +1,5 @@
 class BitrixClient {
-  constructor(webhookBase) { this.webhookBase = webhookBase; this.acceptedVerificationStageId = null; }
+  constructor(webhookBase) { this.webhookBase = webhookBase; this.acceptedVerificationStageId = null; this.itemFields = null; }
   get configured() { return Boolean(this.webhookBase); }
 
   async call(method, payload, contentType = 'application/json') {
@@ -57,6 +57,28 @@ class BitrixClient {
     });
   }
 
+  async getItem(orderId) {
+    return this.call('crm.item.get', { entityTypeId: 1052, id: Number(orderId) });
+  }
+
+  async getItemFields() {
+    if (!this.itemFields) this.itemFields = await this.call('crm.item.fields', { entityTypeId: 1052 });
+    return this.itemFields;
+  }
+
+  async updateItem(orderId, fields) {
+    return this.call('crm.item.update', { entityTypeId: 1052, id: Number(orderId), fields });
+  }
+
+  async completeDriverDelivery({ orderId, driverName, delivery, file }) {
+    const comment = `Водитель ${driverName} отметил отправку груза. Способ доставки: ${delivery || 'не указан'}.`;
+    const fields = { ENTITY_ID: Number(orderId), ENTITY_TYPE: 'dynamic_1052', COMMENT: comment };
+    if (file) fields.FILES = [[file.filename, file.buffer.toString('base64')]];
+    await this.call('crm.timeline.comment.add', { fields });
+    const photoField = process.env.BITRIX_EXPEDITOR_PHOTO_FIELD;
+    if (file && photoField) await this.call('crm.item.update', { entityTypeId: 1052, id: Number(orderId), fields: { [photoField]: [[file.filename, file.buffer.toString('base64')]] } });
+  }
+
   async deleteComment({ orderId, commentId }) {
     return this.call('crm.timeline.comment.delete', {
       id: Number(commentId), ownerTypeId: 1052, ownerId: Number(orderId),
@@ -102,4 +124,3 @@ class BitrixClient {
 }
 
 module.exports = { BitrixClient };
-

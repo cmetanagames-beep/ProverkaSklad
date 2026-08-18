@@ -7,7 +7,7 @@ function parseUsers(raw) {
   return users
     .map(user => ({ ...user, role: user.role || 'employee' }))
     .filter(({ login, pin, name, warehouse, role }) =>
-      login && pin && name && (role === 'admin' || Boolean(warehouse))
+      login && pin && name && (role === 'admin' || role === 'driver' || role === 'logist' || Boolean(warehouse))
     );
 }
 
@@ -24,5 +24,9 @@ module.exports = {
   checkStorageDir: path.resolve(process.env.CHECK_STORAGE_DIR || path.join(__dirname, '..', 'data', 'checks')),
   historyStorageDir: path.resolve(process.env.HISTORY_STORAGE_DIR || path.join(__dirname, '..', 'data', 'history')),
   userStorageFile: path.resolve(process.env.USER_STORAGE_FILE || path.join(__dirname, '..', 'data', 'users.json')),
+  driverStorageFile: path.resolve(process.env.DRIVER_STORAGE_FILE || path.join(__dirname, '..', 'data', 'driver-deliveries.json')),
+  driverPhotoDir: path.resolve(process.env.DRIVER_PHOTO_DIR || path.join(__dirname, '..', 'data', 'driver-photos')),
+  shippingSpreadsheetId: String(process.env.SHIPPING_SPREADSHEET_ID || '18H4xoO7DFMsIml68G-Ama_fxjc3EW8-tbcKBCtAuuC4'),
+  shippingSheetName: String(process.env.SHIPPING_SHEET_NAME || 'Отгрузки'),
   users: parseUsers(process.env.APP_USERS_JSON),
 };

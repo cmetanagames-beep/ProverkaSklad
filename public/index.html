@@ -5,26 +5,25 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#d80732">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" type="image/png" sizes="192x192" href="/assets/app-icon-192.png">
-  <link rel="apple-touch-icon" href="/assets/app-icon-192.png">
   <title>AKFIX — Складская проверка</title>
   <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="stylesheet" href="/assets/strict-ui.css">
+  <link rel="stylesheet" href="/assets/nav-fix.css">
   <style>.order-status{display:inline-block;margin-top:6px;padding:4px 8px;border-radius:12px;background:#eceeef;color:#62676b;font-size:11px;font-weight:900}.order.myt-ready .order-status{background:#e7f7f3;color:#007f72}.order.bal-ready .order-status{background:#edf2ff;color:#3157a5}.order.needs-combined{background:#fff8e8!important;border-left:4px solid #f5a800!important}.order.needs-combined .order-status{background:#ffe9b5;color:#916400}.head-actions{display:flex;gap:7px}.bottom-nav button:focus{outline:none}.bottom-nav button:focus-visible{outline:3px solid rgba(0,170,152,.35);outline-offset:-3px;border-radius:10px}.warehouse-focus{border-color:#dfe5e2;border-left:4px solid #00aa98}</style>
   <style>.orders-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.orders-title h1{font-size:28px!important;margin:0!important}.orders-title p{margin:5px 0 0;color:#77777d;font-size:12px}.orders-title .work-stage{flex:0 0 auto;margin:0;padding:8px 10px;gap:7px}.orders-title .status-check{width:27px;height:27px;font-size:13px}.orders-title .work-stage small{font-size:9px}.orders-title .work-stage b{font-size:12px}.login-strip{padding:11px 12px!important;margin-bottom:11px!important}.warehouse-symbol{width:36px;height:36px}.search{height:48px!important}.start-help{display:flex!important;align-items:center;justify-content:space-between;padding:11px 13px!important;margin:11px 0 17px!important}.start-help b{font-size:13px!important}.start-help small{font-size:11px}.start-help em{margin:0!important;font-size:12px;white-space:nowrap}.notification-button{min-height:38px;border:1px solid #d9e5e1;border-radius:9px;background:#fff;color:#007f72;padding:0 9px;font-size:10px;font-weight:900}.refresh-icon{width:38px!important;height:38px!important}.orders-head h2{font-size:17px!important}.compact-empty{display:grid;gap:6px;padding:20px 14px!important}.compact-empty b{color:#333}.compact-empty small{max-width:280px;margin:auto;line-height:1.4}.history-section-title{margin-top:20px!important}[data-screen="special"] h1{font-size:27px}.rule{padding:14px!important}.rule p{margin-bottom:0}.tip{margin:11px 0!important}</style>
   <style>.orders-title{gap:10px}.orders-title h1{font-size:24px!important;white-space:nowrap}.orders-head>div:first-child{display:block}.orders-head>div:first-child .stage{display:block;margin-top:5px}.head-actions{flex-wrap:nowrap!important;align-items:center}</style>
-<link rel="stylesheet" href="/assets/nav-tab.css">
 </head>
 <body>
 <section class="auth" id="auth"><form class="auth-card" id="loginForm"><img class="brand-logo auth-logo" src="/assets/logo.svg" alt="AKFIX"><h1>Вход сотрудника</h1><p class="sub">Войдите под своей учётной записью. Склад определяется автоматически.</p><label class="auth-field"><span>Логин</span><input id="login" autocomplete="username" required placeholder="Например, Иван"></label><label class="auth-field"><span>PIN-код</span><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" required placeholder="••••"></label><div class="auth-error" id="authError"></div><button class="primary" id="loginButton">Войти</button><p class="auth-note">Если вы не знаете логин или PIN — обратитесь к руководителю склада.</p></form></section>
 <div class="uploading" id="uploading"><div><div class="loader"></div><h2>Сохраняем проверку</h2><p class="sub">При отсутствии интернета фото останутся на телефоне и отправятся позже.</p></div></div>
 <main class="shell">
-  <header class="top" id="top"><img class="brand-logo header-logo" src="/assets/logo.svg" alt="AKFIX"><button class="head-user" data-help aria-label="Инструкция"><span>Е</span><b>Евгений</b><i>⌄</i></button></header>
+  <header class="top" id="top"><img class="brand-logo header-logo" src="/assets/logo.svg" alt="AKFIX"><button class="head-user" data-help aria-label="Инструкция"><span>Е</span><b>Евгений</b><i>Помощь</i></button></header>
   <section class="screen active" data-screen="orders">
-    <div class="orders-title"><div><h1>Проверка грузов</h1><p>Выберите заказ и начните проверку</p></div><div class="work-stage"><span class="status-check">✓</span><span><small>Этап</small><b>Проверка</b></span></div></div>
+    <div class="orders-title"><div><h1>Заказы на проверку</h1><p>Выберите заказ и начните проверку</p></div><div class="work-stage"><span><small>Этап</small><b>Проверка</b></span></div></div>
     <div class="section-label">Ваш склад</div>
     <div class="employee-card login-strip warehouse-focus"><div class="warehouse-symbol">▤</div><div><div class="login-label">Склад</div><b id="listWarehouse">—</b><small id="listEmployee">—</small></div><div class="user" id="listInitial">—</div><button class="switch-user" id="listSwitch">Выйти</button></div>
     <input class="search" id="search" placeholder="Номер заказа">
-    <button class="start-help" data-help><span><b>Как правильно провести проверку?</b><small>Короткая инструкция для сотрудника</small></span><em>Открыть</em></button>
+    <button class="start-help" data-help><span><b>Инструкция по проверке</b><small>Товар, палеты и обязательные фотографии</small></span><em>Открыть</em></button>
     <div class="orders-head"><div><h2>Заказы</h2><span class="stage">На сборке и проверке</span></div><div class="head-actions"><button class="notification-button" id="enableNotifications">Уведомления</button><button class="refresh-icon" id="refreshOrders" aria-label="Обновить заказы">↻</button></div></div>
     <div class="order-list" id="orders"></div><div class="sync"><i></i><span id="syncText">Загружаем заказы…</span></div>
   </section>
@@ -55,24 +54,22 @@
   <section class="screen with-rail" data-screen="pallets">
     <div class="rail"><span class="done">✓</span><span class="done">✓</span><span class="done">✓</span><span class="on">4</span></div>
     <div class="steps"><span class="step done" data-n="1">Склад</span><span class="step done" data-n="2">Палеты</span><span class="step on" data-n="3">Выбор</span><span class="step" data-n="4">Фото</span></div>
-    <h1>Фотографии палет</h1><p class="sub">Откройте палету и добавьте три обязательных фотографии.</p>
-    <label class="series-label-option"><input type="checkbox" id="palletLabels"><span><b>Палетные этикетки</b><small>В каждой палете добавится одно дополнительное фото этикетки.</small></span></label>
-    <div class="tip" id="palletCoach"><span class="tip-icon">1</span><span><b>Как фотографировать?</b><small>Откройте палету, сделайте фотографии и вернитесь к списку. Затем откройте следующую.</small></span><button class="tip-close" id="closeCoach">×</button></div>
+    <h1>Выберите палету</h1><p class="sub">Открывайте палеты вручную. Для каждой требуется три фотографии.</p>
+    <div class="tip" id="palletCoach"><span class="tip-icon">1</span><span><b>С чего начать?</b><small>Нажмите на палету, которую фотографируете сейчас. После фото вы вернётесь в этот список.</small></span><button class="tip-close" id="closeCoach">×</button></div>
     <div class="pallet-list" id="pallets"></div>
     <div class="sticky"><button class="primary" id="finish" disabled>Сохранить проверку</button><p class="note">Общая выгрузка выполнится после проверки двух складов</p></div>
   </section>
   <section class="screen" data-screen="capture">
     <div class="steps"><span class="step done" data-n="1">Склад</span><span class="step done" data-n="2">Палеты</span><span class="step done" data-n="3">Выбор</span><span class="step on" data-n="4">Фото</span></div>
     <div class="capture-head"><div><h1 id="captureTitle">Палета 1</h1><span class="stage" id="captureType">Европалета</span></div><div class="big-progress" id="captureProgress">0/5</div></div>
-    <p class="sub">Откройте камеру один раз и последовательно сделайте все обязательные фотографии.</p><div class="pallet-camera" id="palletCamera"><video id="palletVideo" playsinline muted></video><div class="camera-prompt"><span id="cameraStep">Фото 1 из 3</span><b id="cameraTitle">Первая сторона</b><small id="cameraHint">Сфотографируйте всю палету с первой стороны</small></div><button class="camera-shutter" id="cameraShutter" hidden aria-label="Сделать фото"></button></div><button class="primary capture-start" id="openPalletCamera">Сделать 3 фото</button><label class="secondary capture-fallback" id="captureFallback" hidden>Выбрать фотографии<input id="captureFiles" type="file" accept="image/*" multiple hidden></label><div class="capture-instructions" id="captureGuide"></div><div class="capture-list" id="captureList"></div><div class="capture-add"><button class="secondary" id="addExtraPhoto">+ Дополнительное фото</button></div><div class="tip amber"><span class="tip-icon">!</span><span><b>Вся палета должна быть в кадре</b><small>На первых двух фото видны противоположные стороны, на третьем — палета сверху.</small></span></div><button class="secondary" data-help>Как фотографировать?</button>
+    <p class="sub">Сфотографируйте палету с двух противоположных сторон и сверху.</p><div class="capture-list" id="captureList"></div><div class="tip amber"><span class="tip-icon">!</span><span><b>Вся палета должна быть в кадре</b><small>На первых двух фото видны противоположные стороны, на третьем — палета сверху.</small></span></div><button class="secondary" data-help>Как фотографировать?</button>
     <div class="sticky"><button class="primary" id="savePallet" disabled>Сохранить палету</button><p class="why" id="saveWhy">Добавьте все 3 фотографии</p></div>
   </section>
   <section class="screen" data-screen="success"><div class="success"><div class="success-icon">✓</div><h1>Проверка выгружена</h1><p class="sub">Фотографии и данные отправлены в Bitrix24 и Telegram.</p><div class="summary" id="summary"></div><button class="secondary" id="again">Вернуться к заказам</button></div></section>
-  <section class="screen receiving-screen" data-screen="receiving"><iframe id="receivingFrame" src="/receiving-test/?embedded=1" title="Приёмка товаров" allow="camera"></iframe></section>
 </main>
-<nav class="bottom-nav" id="bottomNav"><button class="active" data-nav="orders"><span>▤</span>Заказы</button><button data-nav="receiving"><span>▦</span>Приёмка</button><button data-nav="history"><span>◷</span>История <i id="queueBadge"></i></button></nav>
+<nav class="bottom-nav" id="bottomNav"><button class="active" data-nav="orders">Заказы</button><button data-nav="history">История <i id="queueBadge"></i></button></nav>
 <div class="toast" id="toast"></div>
 <div class="modal" id="helpModal"><section class="sheet"><div class="sheet-head"><h2>Как работать</h2><button class="sheet-close" id="closeHelp">×</button></div><div class="help-list"><div class="help-row"><i>1</i><span><b>Выберите заказ</b><small>Откройте нужный номер из списка Bitrix24.</small></span></div><div class="help-row"><i>2</i><span><b>Проверьте свой склад</b><small>Если товара нет — отметьте это. Если есть — укажите особые товары и палеты.</small></span></div><div class="help-row"><i>3</i><span><b>Снимите каждую палету</b><small>Первая сторона, противоположная сторона и вид сверху.</small></span></div><div class="help-row"><i>4</i><span><b>Выгрузите результат</b><small>После проверки двух складов фото попадут в Bitrix24 и Telegram.</small></span></div></div><button class="primary" id="understood">Понятно</button></section></div>
-<script src="/assets/offline.js" defer></script><script src="/assets/app.js" defer></script>
+<script src="/assets/role-router.js" defer></script><script src="/assets/offline.js" defer></script><script src="/assets/app.js" defer></script>
 </body>
 </html>

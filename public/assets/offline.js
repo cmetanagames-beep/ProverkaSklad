@@ -13,4 +13,3 @@
   async function schedule(){if('serviceWorker'in navigator){const registration=await navigator.serviceWorker.ready;try{await registration.sync?.register('akfix-upload')}catch{}}}
   window.OfflineQueue={enqueue,list,remove,sync};
 })();
-

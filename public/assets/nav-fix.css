@@ -1,0 +1,4 @@
+.bottom-nav button.active:before{left:50%;width:76px!important;transform:translateX(-50%)}
+.bottom-nav button{transition:color .15s ease}
+.history-list:empty:after{content:"Здесь пока нет сохранённых проверок";display:block;padding:32px 18px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);color:var(--muted);font-size:13px;text-align:center}
+@media(min-width:700px){.bottom-nav{height:60px;bottom:24px;border-radius:0}.bottom-nav button.active:before{width:92px!important}.shell{border-radius:0}}
