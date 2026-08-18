@@ -71,6 +71,16 @@ test('malformed JSON is rejected without stopping the service', async () => {
   assert.equal((await fetch(`${BASE}/health`)).status, 200);
 });
 
+test('role APIs reject the wrong user and validate driver dates', async () => {
+  assert.equal((await fetch(`${BASE}/api/driver/orders`)).status, 401);
+  const receiverCookie = await login('receiver', '1111');
+  assert.equal((await fetch(`${BASE}/api/driver/orders`, { headers: { Cookie: receiverCookie } })).status, 403);
+  const driverCookie = await login('driver', '2222');
+  assert.equal((await fetch(`${BASE}/api/logist/orders`, { headers: { Cookie: driverCookie } })).status, 403);
+  assert.equal((await fetch(`${BASE}/api/driver/orders?date=tomorrow`, { headers: { Cookie: driverCookie } })).status, 400);
+  assert.equal((await fetch(`${BASE}/api/driver/order?id=sheet-1&date=19.08.26`, { headers: { Cookie: driverCookie } })).status, 400);
+});
+
 test('security headers and distinct offline navigation routes are present', async () => {
   const response = await fetch(`${BASE}/health`);
   assert.match(response.headers.get('content-security-policy'), /frame-ancestors 'none'/);
@@ -80,4 +90,22 @@ test('security headers and distinct offline navigation routes are present', asyn
   const sw = await fs.readFile(path.join(ROOT, 'public', 'sw.js'), 'utf8');
   assert.match(sw, /pathname\.startsWith\('\/receiving'\).*'\/receiving\/'/s);
   assert.match(sw, /pathname\.startsWith\('\/admin'\).*'\/admin\.html'/s);
+});
+
+test('role screens share the AKFIX visual tokens and driver tomorrow navigation', async () => {
+  const cssFiles = [
+    path.join(ROOT, 'public', 'driver', 'driver.css'),
+    path.join(ROOT, 'public', 'logist', 'logist.css'),
+    path.join(ROOT, 'receiving-test', 'styles.css'),
+    path.join(ROOT, 'public', 'assets', 'admin-strict.css'),
+  ];
+  for (const file of cssFiles) {
+    const css = await fs.readFile(file, 'utf8');
+    assert.match(css, /--red:#cf0a2c/);
+    assert.match(css, /--ink:#151518/);
+    assert.match(css, /--line:#e[23]e[23]e[56]/);
+  }
+  const driverHtml = await fs.readFile(path.join(ROOT, 'public', 'driver', 'index.html'), 'utf8');
+  assert.match(driverHtml, /data-filter="tomorrow">Завтра</);
+  assert.match(driverHtml, /src="\/assets\/logo\.svg" alt="AKFIX"/);
 });
