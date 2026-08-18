@@ -20,6 +20,8 @@ module.exports = {
   telegramChatId: String(process.env.TELEGRAM_CHAT_ID || ''),
   telegramPhotoChatId: String(process.env.TELEGRAM_PHOTO_CHAT_ID || '-1002084123169'),
   telegramSettingsFile: path.resolve(process.env.TELEGRAM_SETTINGS_FILE || path.join(__dirname, '..', 'data', 'telegram.json')),
+  telegramExpeditorChatId: String(process.env.TELEGRAM_EXPEDITOR_CHAT_ID || ''),
+  telegramExpeditorSettingsFile: path.resolve(process.env.TELEGRAM_EXPEDITOR_SETTINGS_FILE || path.join(__dirname, '..', 'data', 'telegram-expeditor.json')),
   sessionSecret: String(process.env.SESSION_SECRET || ''),
   checkStorageDir: path.resolve(process.env.CHECK_STORAGE_DIR || path.join(__dirname, '..', 'data', 'checks')),
   historyStorageDir: path.resolve(process.env.HISTORY_STORAGE_DIR || path.join(__dirname, '..', 'data', 'history')),
