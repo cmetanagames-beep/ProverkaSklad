@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { sendJson, readJson } = require('./http/response');
 const { driverNamesMatch } = require('./domain/driver-name');
+const { driverBitrixFields } = require('./domain/driver-bitrix-fields');
 
 const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.webmanifest':'application/manifest+json','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml'};
 
@@ -123,8 +124,11 @@ class Application {
     const sheetId = String(url.searchParams.get('id') || '');
     const row = (await this.#rowsForDriver(user)).find(item => item.id === sheetId);
     if (!row) return sendJson(res, 404, { error: 'ORDER_NOT_FOUND' });
-    let bitrix = null;
-    if (row.bitrixId && this.bitrix.configured) bitrix = await this.bitrix.getItem(row.bitrixId);
+    let bitrix = { fields: [] };
+    if (row.bitrixId && this.bitrix.configured) {
+      const [result, fieldResult] = await Promise.all([this.bitrix.getItem(row.bitrixId), this.bitrix.getItemFields()]);
+      bitrix = { fields: driverBitrixFields(result.item || result, fieldResult.fields || fieldResult) };
+    }
     sendJson(res, 200, { order: row, bitrix, completed: this.driverDeliveries.get(user.login, row.id) }, { 'Cache-Control': 'no-store' });
   }
 
