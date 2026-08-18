@@ -4,6 +4,7 @@ const HEADER_ALIASES = {
   warehouse: ['Склад'], documents: ['Документы'], relabel: ['Перебивка с Мытищи'],
   marking: ['ЧЗ'], status: ['Статус'], driver: ['Водитель'], delivery: ['Доставка'], amount: ['Сумма'],
 };
+const FALLBACK_INDEX = { date: 1, client: 3, orderNumber: 4, bitrixId: 5, warehouse: 6, documents: 7, relabel: 8, marking: 9, status: 10, driver: 11, delivery: 12, amount: 14 };
 
 class ShippingSheetClient {
   constructor({ spreadsheetId, sheetName }) { this.spreadsheetId = spreadsheetId; this.sheetName = sheetName; }
@@ -16,7 +17,7 @@ class ShippingSheetClient {
 
   async listToday() {
     const url = new URL(`https://docs.google.com/spreadsheets/d/${encodeURIComponent(this.spreadsheetId)}/gviz/tq`);
-    url.searchParams.set('tqx', 'out:json'); url.searchParams.set('sheet', this.sheetName);
+    url.searchParams.set('tqx', 'out:json'); url.searchParams.set('sheet', this.sheetName); url.searchParams.set('headers', '2');
     const response = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!response.ok) throw new Error(`SHIPPING_SHEET_${response.status}`);
     const text = await response.text();
@@ -24,7 +25,7 @@ class ShippingSheetClient {
     if (!match) throw new Error('SHIPPING_SHEET_FORMAT');
     const table = JSON.parse(match[1]).table;
     const labels = table.cols.map(column => String(column.label || '').trim());
-    const index = Object.fromEntries(Object.entries(HEADER_ALIASES).map(([key, aliases]) => [key, aliases.map(alias => labels.indexOf(alias)).find(i => i >= 0) ?? -1]));
+    const index = Object.fromEntries(Object.entries(HEADER_ALIASES).map(([key, aliases]) => [key, aliases.map(alias => labels.indexOf(alias)).find(i => i >= 0) ?? FALLBACK_INDEX[key]]));
     const value = (row, key) => { const cell = row.c[index[key]]; return cell ? String(cell.f ?? cell.v ?? '').trim() : ''; };
     const today = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date());
     const normalizeDate = input => {

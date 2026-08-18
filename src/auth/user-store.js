@@ -50,15 +50,16 @@ class UserStore {
   }
 
   #validate(input, pinRequired) {
-    const login=String(input.login||'').trim(),name=String(input.name||'').trim(),warehouse=String(input.warehouse||'').trim(),pin=String(input.pin||'').trim(),role=String(input.role||'employee');
+    const login=String(input.login||'').trim(),name=String(input.name||'').trim(),warehouse=String(input.warehouse||'').trim(),pin=String(input.pin||'').trim(),role=String(input.role||'employee'),sheetDriverName=String(input.sheetDriverName||'').trim();
     if (!login || login.length > 60 || !name || name.length > 100) throw new Error('INVALID_EMPLOYEE');
     if (!['employee','driver','logist'].includes(role)) throw new Error('INVALID_ROLE');
     if (role === 'employee' && !['Мытищи','Балашиха'].includes(warehouse)) throw new Error('INVALID_WAREHOUSE');
     if ((pinRequired || input.pin) && !/^\d{4,12}$/.test(pin)) throw new Error('INVALID_PIN');
-    return { login, name, warehouse: role === 'employee' ? warehouse : '', pin, role };
+    if (sheetDriverName.length > 150) throw new Error('INVALID_DRIVER_NAME');
+    return { login, name, warehouse: role === 'employee' ? warehouse : '', pin, role, sheetDriverName: role === 'driver' ? sheetDriverName : '' };
   }
 
-  #public(user) { return { id:user.id,login:user.login,name:user.name,warehouse:user.warehouse,role:user.role||'employee' }; }
+  #public(user) { return { id:user.id,login:user.login,name:user.name,warehouse:user.warehouse,role:user.role||'employee',sheetDriverName:user.sheetDriverName||'' }; }
   #save() { this.writeLock=this.writeLock.then(async()=>{await fs.mkdir(path.dirname(this.file),{recursive:true});const temp=`${this.file}.${crypto.randomUUID()}.tmp`;await fs.writeFile(temp,JSON.stringify(this.users));await fs.rename(temp,this.file)});return this.writeLock; }
 }
 
