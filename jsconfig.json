@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowJs": true,
+    "checkJs": false,
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["server.js", "src/**/*.js", "public/**/*.js", "receiving-test/**/*.js", "scripts/**/*.mjs", "test/**/*.js"],
+  "exclude": ["node_modules", "middle-kit", "data"]
+}

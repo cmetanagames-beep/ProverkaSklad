@@ -7,3 +7,16 @@ node_modules/
 data/
 *.log
 *.backup-*.html
+middle-kit/
+.playwright-cli/
+*.kit-new
+dist/
+build/
+.cache/
+.idea/
+.vscode/
+*.swp
+*.bak
+*.tmp
+tmp/
+temp/
