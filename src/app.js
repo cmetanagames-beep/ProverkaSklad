@@ -5,7 +5,7 @@ const { sendJson, readJson } = require('./http/response');
 const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.webmanifest':'application/manifest+json','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml'};
 
 class Application {
-  constructor({ publicDir, receivingTestDir, sessions, bitrix, multipart, checks, history, userStore, shippingSheet, driverDeliveries, telegramExpeditor }) {
+  constructor({ publicDir, receivingTestDir, sessions, bitrix, multipart, checks, history, userStore, shippingSheet, driverDeliveries, telegramExpeditor, receiving }) {
     this.publicDir = publicDir;
     this.receivingTestDir = receivingTestDir;
     this.sessions = sessions;
@@ -17,6 +17,7 @@ class Application {
     this.shippingSheet = shippingSheet;
     this.driverDeliveries = driverDeliveries;
     this.telegramExpeditor = telegramExpeditor;
+    this.receiving = receiving;
     this.orderLocks = new Map();
     this.version = process.env.APP_VERSION || `${Date.now()}`;
   }
@@ -26,44 +27,48 @@ class Application {
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
       if (url.pathname === '/health') return this.#health(res);
       if (url.pathname === '/api/version' && req.method === 'GET') return sendJson(res, 200, { version: this.version }, { 'Cache-Control': 'no-store' });
-      if (url.pathname === '/api/session' && req.method === 'GET') return this.#session(req, res);
-      if (url.pathname === '/api/login' && req.method === 'POST') return this.#login(req, res);
-      if (url.pathname === '/api/logout' && req.method === 'POST') return this.#logout(res);
+      if (url.pathname === '/api/session' && req.method === 'GET') return await this.#session(req, res);
+      if (url.pathname === '/api/login' && req.method === 'POST') return await this.#login(req, res);
+      if (url.pathname === '/api/logout' && req.method === 'POST') return await this.#logout(res);
       if (url.pathname === '/api/driver/orders' && req.method === 'GET') return await this.#driverOrders(req, res);
-      if (url.pathname === '/api/driver/history' && req.method === 'GET') return this.#driverHistory(req, res, url);
+      if (url.pathname === '/api/driver/history' && req.method === 'GET') return await this.#driverHistory(req, res, url);
       if (url.pathname === '/api/driver/order' && req.method === 'GET') return await this.#driverOrder(req, res, url);
       if (url.pathname === '/api/driver/complete' && req.method === 'POST') return await this.#driverComplete(req, res);
       if (url.pathname === '/api/logist/orders' && req.method === 'GET') return await this.#logistOrders(req, res);
-      if (url.pathname === '/api/logist/drivers' && req.method === 'GET') return this.#logistDrivers(req, res);
+      if (url.pathname === '/api/logist/drivers' && req.method === 'GET') return await this.#logistDrivers(req, res);
       if (url.pathname === '/api/logist/order' && req.method === 'GET') return await this.#logistOrder(req, res, url);
       if (url.pathname === '/api/logist/order/update' && req.method === 'POST') return await this.#logistUpdate(req, res);
       if (url.pathname === '/api/logist/assign' && req.method === 'POST') return await this.#logistAssign(req, res);
       if (url.pathname.startsWith('/api/logist/photo/') && req.method === 'GET') return await this.#logistPhoto(req, res, url.pathname.slice('/api/logist/photo/'.length));
-      if (url.pathname === '/api/checks/complete' && req.method === 'POST') return this.#complete(req, res);
-      if (url.pathname === '/api/history' && req.method === 'GET') return this.#history(req, res);
-      if (url.pathname === '/api/pending' && req.method === 'GET') return this.#pending(req, res);
-      if (url.pathname === '/api/check-status' && req.method === 'GET') return this.#checkStatus(req, res, url);
-      if (url.pathname === '/api/order-locks' && req.method === 'GET') return this.#orderLocks(req, res);
-      if (url.pathname === '/api/order-locks/acquire' && req.method === 'POST') return this.#acquireOrderLock(req, res);
-      if (url.pathname === '/api/order-locks/release' && req.method === 'POST') return this.#releaseOrderLock(req, res);
-      if (url.pathname === '/api/admin/comments/list' && req.method === 'POST') return this.#adminListComments(req, res);
-      if (url.pathname === '/api/admin/comments/delete' && req.method === 'POST') return this.#adminDeleteComment(req, res);
-      if (url.pathname === '/api/admin/photos/clear' && req.method === 'POST') return this.#adminClearPhotos(req, res);
-      if (url.pathname === '/api/admin/check-status' && req.method === 'GET') return this.#adminCheckStatus(req, res, url);
-      if (url.pathname === '/api/admin/users' && req.method === 'GET') return this.#adminUsers(req, res);
-      if (url.pathname === '/api/admin/users/create' && req.method === 'POST') return this.#adminCreateUser(req, res);
-      if (url.pathname === '/api/admin/users/update' && req.method === 'POST') return this.#adminUpdateUser(req, res);
-      if (url.pathname === '/api/admin/telegram/chats' && req.method === 'GET') return this.#adminTelegramChats(req, res);
-      if (url.pathname === '/api/admin/telegram/select' && req.method === 'POST') return this.#adminTelegramSelect(req, res);
-      if (url.pathname === '/api/admin/telegram/expeditor/select' && req.method === 'POST') return this.#adminTelegramExpeditorSelect(req, res);
+      if (url.pathname === '/api/checks/complete' && req.method === 'POST') return await this.#complete(req, res);
+      if (url.pathname === '/api/history' && req.method === 'GET') return await this.#history(req, res);
+      if (url.pathname === '/api/pending' && req.method === 'GET') return await this.#pending(req, res);
+      if (url.pathname === '/api/check-status' && req.method === 'GET') return await this.#checkStatus(req, res, url);
+      if (url.pathname === '/api/order-locks' && req.method === 'GET') return await this.#orderLocks(req, res);
+      if (url.pathname === '/api/order-locks/acquire' && req.method === 'POST') return await this.#acquireOrderLock(req, res);
+      if (url.pathname === '/api/order-locks/release' && req.method === 'POST') return await this.#releaseOrderLock(req, res);
+      if (url.pathname === '/api/receiving' && req.method === 'GET') return await this.#receivingGet(req, res);
+      if (url.pathname === '/api/receiving' && req.method === 'PUT') return await this.#receivingSave(req, res);
+      if (url.pathname === '/api/receiving' && req.method === 'DELETE') return await this.#receivingClear(req, res);
+      if (url.pathname === '/api/admin/comments/list' && req.method === 'POST') return await this.#adminListComments(req, res);
+      if (url.pathname === '/api/admin/comments/delete' && req.method === 'POST') return await this.#adminDeleteComment(req, res);
+      if (url.pathname === '/api/admin/photos/clear' && req.method === 'POST') return await this.#adminClearPhotos(req, res);
+      if (url.pathname === '/api/admin/check-status' && req.method === 'GET') return await this.#adminCheckStatus(req, res, url);
+      if (url.pathname === '/api/admin/users' && req.method === 'GET') return await this.#adminUsers(req, res);
+      if (url.pathname === '/api/admin/users/create' && req.method === 'POST') return await this.#adminCreateUser(req, res);
+      if (url.pathname === '/api/admin/users/update' && req.method === 'POST') return await this.#adminUpdateUser(req, res);
+      if (url.pathname === '/api/admin/telegram/chats' && req.method === 'GET') return await this.#adminTelegramChats(req, res);
+      if (url.pathname === '/api/admin/telegram/select' && req.method === 'POST') return await this.#adminTelegramSelect(req, res);
+      if (url.pathname === '/api/admin/telegram/expeditor/select' && req.method === 'POST') return await this.#adminTelegramExpeditorSelect(req, res);
       if (url.pathname.startsWith('/api/bitrix/') && req.method === 'POST') return await this.#proxyBitrix(req, res, url.pathname.slice('/api/bitrix/'.length));
       if (url.pathname === '/receiving') { res.writeHead(308, { Location: '/receiving/' }); return res.end(); }
       if (url.pathname === '/receiving-test') { res.writeHead(308, { Location: '/receiving-test/' }); return res.end(); }
       return this.#static(req, res, url.pathname);
     } catch (error) {
-      console.error(error);
-      const status = ['BODY_TOO_LARGE','PHOTO_TOO_LARGE'].includes(error.message) ? 413 : 500;
-      sendJson(res, status, { error: error.message || 'SERVER_ERROR' });
+      const isInvalidJson = error instanceof SyntaxError;
+      const status = isInvalidJson ? 400 : ['BODY_TOO_LARGE','PHOTO_TOO_LARGE'].includes(error.message) ? 413 : 500;
+      if (status === 500) console.error(error);
+      sendJson(res, status, { error: isInvalidJson ? 'INVALID_JSON' : status === 500 ? 'SERVER_ERROR' : error.message });
     }
   }
 
@@ -83,6 +88,11 @@ class Application {
 
   #driver(req, res) { const user = this.#user(req, res); if (!user) return null; if (user.role !== 'driver') { sendJson(res, 403, { error: 'DRIVER_REQUIRED' }); return null; } return user; }
   #logist(req, res) { const user = this.#user(req, res); if (!user) return null; if (!['logist','admin'].includes(user.role)) { sendJson(res, 403, { error: 'LOGIST_REQUIRED' }); return null; } return user; }
+  #receiver(req, res) { const user = this.#user(req, res); if (!user) return null; if (!['employee','admin'].includes(user.role)) { sendJson(res, 403, { error: 'RECEIVING_REQUIRED' }); return null; } return user; }
+
+  #receivingGet(req, res) { const user = this.#receiver(req, res); if (user) sendJson(res, 200, { item: this.receiving.get(user.login) }, { 'Cache-Control': 'no-store' }); }
+  async #receivingSave(req, res) { const user = this.#receiver(req, res); if (!user) return; sendJson(res, 200, { item: await this.receiving.save(user.login, await readJson(req, 5 * 1024 * 1024)) }); }
+  async #receivingClear(req, res) { const user = this.#receiver(req, res); if (!user) return; await this.receiving.clear(user.login); sendJson(res, 200, { ok: true }); }
 
   async #rowsForDriver(name) {
     const normalized = String(name || '').trim().toLocaleLowerCase('ru');
@@ -340,6 +350,11 @@ class Application {
     const isDriver = pathname === '/driver' || pathname.startsWith('/driver/');
     const isLogist = pathname === '/logist' || pathname.startsWith('/logist/');
     const isReceivingTest = pathname === '/receiving' || pathname.startsWith('/receiving/') || pathname === '/receiving-test' || pathname.startsWith('/receiving-test/');
+    if (isReceivingTest) {
+      const user = this.sessions.userFromRequest(req);
+      if (!user) { res.writeHead(302, { Location: '/' }); return res.end(); }
+      if (!['employee','admin'].includes(user.role)) return sendJson(res, 403, { error: 'RECEIVING_REQUIRED' });
+    }
     const baseDir = isDriver ? path.join(this.publicDir, 'driver') : isLogist ? path.join(this.publicDir, 'logist') : (isReceivingTest ? this.receivingTestDir : this.publicDir);
     const relative = isReceivingTest
       ? (pathname === '/receiving' || pathname === '/receiving/' || pathname === '/receiving-test' || pathname === '/receiving-test/' ? 'index.html' : decodeURIComponent(pathname.startsWith('/receiving/') ? pathname.slice('/receiving/'.length) : pathname.slice('/receiving-test/'.length)))

@@ -1,11 +1,20 @@
-const CACHE = 'akfix-shell-v8';
+const CACHE = 'akfix-shell-v9';
 const ASSETS = [
   '/', '/index.html', '/assets/styles.css', '/assets/strict-ui.css', '/assets/nav-fix.css', '/assets/app.js', '/assets/offline.js',
   '/assets/role-router.js', '/assets/logo.svg', '/manifest.webmanifest',
   '/driver/', '/driver/index.html', '/driver/driver.css', '/driver/driver-fix.css', '/driver/driver.js',
   '/logist/', '/logist/index.html', '/logist/logist.css', '/logist/logist.js',
   '/admin.html', '/assets/admin.css', '/assets/admin-users.css', '/assets/admin-strict.css', '/assets/admin.js',
+  '/receiving/styles.css', '/receiving/scanner.css', '/receiving/app.js', '/receiving/exceljs.min.js',
 ];
+
+function navigationKey(pathname) {
+  if (pathname.startsWith('/driver')) return '/driver/index.html';
+  if (pathname.startsWith('/logist')) return '/logist/index.html';
+  if (pathname.startsWith('/receiving')) return '/receiving/';
+  if (pathname.startsWith('/admin')) return '/admin.html';
+  return '/index.html';
+}
 
 self.addEventListener('install', event => event.waitUntil(
   caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())
@@ -23,13 +32,13 @@ self.addEventListener('fetch', event => {
     fetch(event.request, { cache:'no-store' }).then(response => {
       if (response.ok) {
         const key = event.request.mode === 'navigate'
-          ? (url.pathname.startsWith('/driver') ? '/driver/index.html' : url.pathname.startsWith('/logist') ? '/logist/index.html' : '/index.html')
+          ? navigationKey(url.pathname)
           : event.request;
         caches.open(CACHE).then(cache => cache.put(key, response.clone()));
       }
       return response;
     }).catch(() => {
-      if (event.request.mode === 'navigate') return caches.match(url.pathname.startsWith('/driver') ? '/driver/index.html' : url.pathname.startsWith('/logist') ? '/logist/index.html' : '/index.html');
+      if (event.request.mode === 'navigate') return caches.match(navigationKey(url.pathname));
       return caches.match(event.request);
     })
   );
