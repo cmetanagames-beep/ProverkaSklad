@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { driverNamesMatch } = require('../src/domain/driver-name');
+const { bitrixIdFromOrderNumber } = require('../src/integrations/shipping-sheet-client');
 
 test('matches a short account name to the full spreadsheet name', () => {
   assert.equal(driverNamesMatch('Магомедов Шамиль', 'Магомедов Шамиль Магомедович'), true);
@@ -13,4 +14,9 @@ test('normalizes letter case, punctuation and ё', () => {
 test('does not match different drivers', () => {
   assert.equal(driverNamesMatch('Магомедов Шамиль', 'Магомедов Ринат'), false);
   assert.equal(driverNamesMatch('Иван', 'Иванов Иван'), false);
+});
+
+test('the Bitrix item id comes from the order number column', () => {
+  assert.equal(bitrixIdFromOrderNumber('3424'), '3424');
+  assert.equal(bitrixIdFromOrderNumber('АФУТ-003424'), '003424');
 });

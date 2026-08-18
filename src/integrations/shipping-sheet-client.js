@@ -5,6 +5,7 @@ const HEADER_ALIASES = {
   marking: ['ЧЗ'], status: ['Статус'], driver: ['Водитель'], delivery: ['Доставка'], amount: ['Сумма'],
 };
 const FALLBACK_INDEX = { date: 1, client: 3, orderNumber: 4, bitrixId: 5, warehouse: 6, documents: 7, relabel: 8, marking: 9, status: 10, driver: 11, delivery: 12, amount: 14 };
+const bitrixIdFromOrderNumber = value => String(value || '').replace(/\D/g, '');
 
 class ShippingSheetClient {
   constructor({ spreadsheetId, sheetName }) { this.spreadsheetId = spreadsheetId; this.sheetName = sheetName; }
@@ -36,7 +37,7 @@ class ShippingSheetClient {
       id: `sheet-${rowIndex + 2}`,
       row: rowIndex + 2,
       date: value(row, 'date'), client: value(row, 'client'), orderNumber: value(row, 'orderNumber'),
-      bitrixId: value(row, 'bitrixId').replace(/\D/g, ''), warehouse: value(row, 'warehouse'),
+      bitrixId: bitrixIdFromOrderNumber(value(row, 'orderNumber')), warehouse: value(row, 'warehouse'),
       documents: value(row, 'documents'), relabel: value(row, 'relabel'), marking: value(row, 'marking'),
       status: value(row, 'status'), driver: value(row, 'driver'), delivery: value(row, 'delivery'), amount: value(row, 'amount'),
     })).filter(item => normalizeDate(item.date) === today && (item.orderNumber || item.client));
@@ -44,4 +45,4 @@ class ShippingSheetClient {
 
 }
 
-module.exports = { ShippingSheetClient };
+module.exports = { ShippingSheetClient, bitrixIdFromOrderNumber };
