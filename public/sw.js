@@ -1,4 +1,4 @@
-const CACHE = 'akfix-shell-v10';
+const CACHE = 'akfix-shell-v11';
 const ASSETS = [
   '/', '/index.html', '/assets/styles.css', '/assets/strict-ui.css', '/assets/nav-fix.css', '/assets/app.js', '/assets/offline.js',
   '/assets/role-router.js', '/assets/logo.svg', '/assets/app-loading.css', '/assets/app-loading.js', '/manifest.webmanifest',

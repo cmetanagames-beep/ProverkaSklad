@@ -1,4 +1,14 @@
 .bottom-nav button.active:before{left:50%;width:76px!important;transform:translateX(-50%)}
-.bottom-nav button{transition:color .15s ease}
+.bottom-nav button{transition:color .2s ease,transform .2s ease}
+.bottom-nav button:active{transform:scale(.96)}
+.bottom-nav button:before{transition:left .25s cubic-bezier(.2,.8,.2,1),width .25s cubic-bezier(.2,.8,.2,1),opacity .2s}
+.screen.active{animation:akfix-screen-enter .26s cubic-bezier(.22,.8,.32,1) both!important}
+.order{transition:background-color .2s ease,transform .2s ease,opacity .2s ease!important}
+.order:active,.order.opening{transform:scale(.985);background:#f7f7f8!important}
+.order.opening{opacity:.72;pointer-events:none}
+@keyframes akfix-screen-enter{from{opacity:0;transform:translate3d(8px,5px,0)}to{opacity:1;transform:none}}
+html,body{overscroll-behavior-y:none}
+.bottom-nav{left:0!important;right:0!important;margin-inline:auto;transform:translateZ(0)!important;will-change:transform}
 .history-list:empty:after{content:"Здесь пока нет сохранённых проверок";display:block;padding:32px 18px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);color:var(--muted);font-size:13px;text-align:center}
 @media(min-width:700px){.bottom-nav{height:60px;bottom:24px;border-radius:0}.bottom-nav button.active:before{width:92px!important}.shell{border-radius:0}}
+@media(prefers-reduced-motion:reduce){.screen.active{animation:none!important}.bottom-nav button,.bottom-nav button:before,.order{transition:none!important}}
