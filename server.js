@@ -17,9 +17,9 @@ async function main() {
   await userStore.init();
   const sessions = new SessionService({ secret: config.sessionSecret, userStore });
   const bitrix = new BitrixClient(config.bitrixWebhookBase);
-  const telegram = new TelegramClient({ token: config.telegramBotToken, chatId: config.telegramPhotoChatId || config.telegramChatId, settingsFile: config.telegramSettingsFile, preferConfiguredChat: true });
+  const telegram = new TelegramClient({ token: config.telegramBotToken, chatId: config.telegramPhotoChatId || config.telegramChatId, settingsFile: config.telegramSettingsFile, preferConfiguredChat: true, confirmationText: '✅ AKFIX: группа выбрана для фотографий и результатов проверки склада.' });
   await telegram.init();
-  const telegramExpeditor = new TelegramClient({ token: config.telegramExpeditorBotToken, chatId: config.telegramExpeditorChatId, settingsFile: config.telegramExpeditorSettingsFile });
+  const telegramExpeditor = new TelegramClient({ token: config.telegramExpeditorBotToken, chatId: config.telegramExpeditorChatId, settingsFile: config.telegramExpeditorSettingsFile, confirmationText: '✅ AKFIX: группа выбрана для экспедиторских расписок водителей.' });
   await telegramExpeditor.init();
   const multipart = new MultipartReader();
   const pendingChecks = new PendingCheckStore(config.checkStorageDir);
