@@ -37,7 +37,7 @@ class ShippingSheetClient {
       id: `sheet-${rowIndex + 2}`,
       row: rowIndex + 2,
       date: value(row, 'date'), client: value(row, 'client'), orderNumber: value(row, 'orderNumber'),
-      bitrixId: bitrixIdFromOrderNumber(value(row, 'orderNumber')), warehouse: value(row, 'warehouse'),
+      bitrixId: '', warehouse: value(row, 'warehouse'),
       documents: value(row, 'documents'), relabel: value(row, 'relabel'), marking: value(row, 'marking'),
       status: value(row, 'status'), driver: value(row, 'driver'), delivery: value(row, 'delivery'), amount: value(row, 'amount'),
     })).filter(item => normalizeDate(item.date) === today && (item.orderNumber || item.client));

@@ -16,7 +16,7 @@ test('does not match different drivers', () => {
   assert.equal(driverNamesMatch('Иван', 'Иванов Иван'), false);
 });
 
-test('the Bitrix item id comes from the order number column', () => {
+test('normalizes the order number without treating it as a Bitrix item id', () => {
   assert.equal(bitrixIdFromOrderNumber('3424'), '3424');
   assert.equal(bitrixIdFromOrderNumber('АФУТ-003424'), '003424');
 });
