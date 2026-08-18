@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#111114" />
+    <title>AKFIX — единое приложение</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="deck" aria-live="polite">
+      <section class="slide hero active" data-title="Начало">
+        <div class="hero-copy">
+          <img class="logo" src="/assets/logo.svg" alt="AKFIX" />
+          <h1>Вся работа —<br />в одном<br />приложении</h1>
+          <div class="red-rule"></div>
+          <div class="roles">
+            <span>Склад</span><span>Приёмка</span><span>Водитель</span><span>Логист</span><span>Администратор</span>
+          </div>
+        </div>
+        <div class="phone-stage hero-phones">
+          <figure class="phone phone-back"><img src="./assets/driver.png" alt="Заказ водителя" /></figure>
+          <figure class="phone phone-front"><img src="./assets/orders.png" alt="Заказы склада" /></figure>
+        </div>
+      </section>
+
+      <section class="slide light" data-title="Как начать">
+        <header>
+          <span class="slide-number">01</span>
+          <h2>Открыл. Проверил. <em>Готово.</em></h2>
+        </header>
+        <div class="timeline">
+          <article>
+            <b>01</b>
+            <h3>Войти</h3>
+            <p>Логин и PIN выдаёт администратор.</p>
+          </article>
+          <article>
+            <b>02</b>
+            <h3>Увидеть свою роль</h3>
+            <p>Приложение само откроет нужный раздел.</p>
+          </article>
+          <article>
+            <b>03</b>
+            <h3>Начать работу</h3>
+            <p>На экране — только следующий шаг.</p>
+          </article>
+        </div>
+        <div class="three-phones">
+          <figure class="phone"><img src="./assets/orders.png" alt="Список заказов" /></figure>
+          <figure class="phone"><img src="./assets/driver.png" alt="Данные доставки" /></figure>
+          <div class="success-phone"><span>✓</span><strong>Готово</strong><small>Результат сохранён</small></div>
+        </div>
+      </section>
+
+      <section class="slide dark split" data-title="Склад">
+        <div class="copy">
+          <span class="slide-number">02</span>
+          <h2>Рабочий день<br />склада</h2>
+          <p>Планируй. Собирай. Проверяй.<br />Всё в одном потоке.</p>
+        </div>
+        <figure class="phone main-phone"><img src="./assets/orders.png" alt="Рабочий список склада" /></figure>
+        <div class="action-list">
+          <article><i>01</i><b>Открой заказ</b><small>Из списка или по номеру</small></article>
+          <article><i>02</i><b>Проверь условия</b><small>Товар, палеты, документы</small></article>
+          <article><i>03</i><b>Сделай фото</b><small>Приложение подскажет ракурсы</small></article>
+          <article><i>04</i><b>Заверши</b><small>Результат появится в истории</small></article>
+        </div>
+      </section>
+
+      <section class="slide light receiving-slide" data-title="Приёмка">
+        <div class="copy">
+          <span class="slide-number">03</span>
+          <h2>Приёмка из Excel —<br />без ручного ввода</h2>
+        </div>
+        <div class="receiving-flow">
+          <article><span>01</span><b>Загрузить</b><small>XLSX или CSV</small></article>
+          <article><span>02</span><b>Сверить</b><small>Факт с планом</small></article>
+          <article><span>03</span><b>Разместить</b><small>Месяц, год, ячейка</small></article>
+          <article><span>04</span><b>Сохранить</b><small>Результат приёмки</small></article>
+        </div>
+        <figure class="phone receiving-phone"><img src="./assets/receiving.png" alt="Экран приёмки Excel" /></figure>
+      </section>
+
+      <section class="slide dark driver-slide" data-title="Водитель">
+        <div class="copy">
+          <span class="slide-number">04</span>
+          <h2>Сегодня → заказ<br />→ расписка</h2>
+        </div>
+        <div class="driver-steps">
+          <article><span>01</span><b>Сверить номер заказа</b></article>
+          <article><span>02</span><b>Прочитать адрес и контакт</b></article>
+          <article><span>03</span><b>Сфотографировать расписку</b></article>
+          <article><span>04</span><b>Нажать «Груз отправлен»</b></article>
+        </div>
+        <figure class="phone driver-phone">
+          <img src="./assets/driver.png" alt="Заказ водителя с данными Bitrix24" />
+        </figure>
+        <p class="accent-note">Фото → Bitrix24 + Telegram</p>
+      </section>
+
+      <section class="slide light control-slide" data-title="Контроль">
+        <div class="copy">
+          <span class="slide-number">05</span>
+          <h2>Ошибка видна<br />до выезда</h2>
+          <p>Логист и администратор контролируют всю цепочку.</p>
+        </div>
+        <div class="control-actions">
+          <span>Проверить данные</span><span>Исправить водителя</span><span>Проверить фотографии</span
+          ><span>Настроить Telegram</span>
+        </div>
+        <figure class="screen admin-screen"><img src="./assets/admin.png" alt="Панель администратора" /></figure>
+        <figure class="screen telegram-screen">
+          <img src="./assets/telegram.png" alt="Настройка Telegram-групп" />
+        </figure>
+      </section>
+
+      <section class="slide offline" data-title="Офлайн">
+        <div class="copy">
+          <span class="slide-number">06</span>
+          <h2>Интернет пропал.<br />Работа — нет.</h2>
+        </div>
+        <div class="offline-phone">
+          <div class="signal">⌁</div>
+          <h3>Нет соединения</h3>
+          <p>Продолжайте работу.<br />Данные останутся на телефоне.</p>
+          <div class="queue"><span>В очереди</span><b>3 действия</b></div>
+        </div>
+        <div class="offline-steps">
+          <article><i>01</i><b>Продолжайте</b></article>
+          <article><i>02</i><b>Приложение сохранит</b></article>
+          <article><i>03</i><b>Интернет появится — отправит</b></article>
+        </div>
+      </section>
+
+      <section class="slide finale" data-title="Результат">
+        <img class="logo" src="/assets/logo.svg" alt="AKFIX" />
+        <h2>Единое приложение.<br />Единый <em>результат.</em></h2>
+        <div class="result-line">
+          <span>Склад</span><i>→</i><span>Проверка</span><i>→</i><span>Доставка</span><i>→</i><span>Контроль</span>
+        </div>
+        <div class="next">
+          <strong>Запускаем вместе.</strong
+          ><small>Подключаем финальные поля Bitrix24 → проводим пилот → закрепляем ответственных</small>
+        </div>
+      </section>
+    </main>
+
+    <nav class="controls" aria-label="Управление презентацией">
+      <button id="prev" aria-label="Предыдущий слайд">←</button>
+      <div class="progress"><i id="progress"></i></div>
+      <span id="counter">1 / 8</span>
+      <button id="fullscreen" aria-label="На весь экран">⛶</button>
+      <button id="next" aria-label="Следующий слайд">→</button>
+    </nav>
+    <script src="./app.js"></script>
+  </body>
+</html>

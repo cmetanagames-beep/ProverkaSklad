@@ -388,7 +388,7 @@ class Application {
       ? (pathname === '/receiving' || pathname === '/receiving/' || pathname === '/receiving-test' || pathname === '/receiving-test/' ? 'index.html' : decodeURIComponent(pathname.startsWith('/receiving/') ? pathname.slice('/receiving/'.length) : pathname.slice('/receiving-test/'.length)))
       : isDriver ? (pathname === '/driver' || pathname === '/driver/' ? 'index.html' : decodeURIComponent(pathname.slice('/driver/'.length)))
       : isLogist ? (pathname === '/logist' || pathname === '/logist/' ? 'index.html' : decodeURIComponent(pathname.slice('/logist/'.length)))
-      : (pathname === '/' ? 'index.html' : decodeURIComponent(pathname).replace(/^\/+/, ''));
+      : (pathname === '/' ? 'index.html' : pathname === '/presentation/' ? 'presentation/index.html' : decodeURIComponent(pathname).replace(/^\/+/, ''));
     const file = path.resolve(baseDir, relative);
     if (file !== baseDir && !file.startsWith(baseDir + path.sep)) return sendJson(res, 403, { error: 'FORBIDDEN' });
     fs.readFile(file, (error, data) => {
