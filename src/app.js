@@ -306,8 +306,10 @@ class Application {
   async #adminTelegramChats(req, res) {
     if (!this.#admin(req, res)) return;
     const warehouseId = this.checks.telegram.selectedChatId, expeditorId = this.telegramExpeditor.selectedChatId;
-    const items = (await this.checks.telegram.listChats()).map(chat => ({ ...chat, current: undefined, warehouse: chat.id === warehouseId, expeditor: chat.id === expeditorId }));
-    sendJson(res, 200, { items });
+    const [warehouseResult, expeditorResult] = await Promise.allSettled([this.checks.telegram.listChats(), this.telegramExpeditor.listChats()]);
+    const warehouseItems = warehouseResult.status === 'fulfilled' ? warehouseResult.value.map(chat => ({ ...chat, bot: 'proverka_akfixbot', purpose: 'warehouse', selected: chat.id === warehouseId })) : [];
+    const expeditorItems = expeditorResult.status === 'fulfilled' ? expeditorResult.value.map(chat => ({ ...chat, bot: 'akfixTN_bot', purpose: 'expeditor', selected: chat.id === expeditorId })) : [];
+    sendJson(res, 200, { items: [...warehouseItems, ...expeditorItems], warehouseBotConfigured: warehouseResult.status === 'fulfilled', expeditorBotConfigured: expeditorResult.status === 'fulfilled' });
   }
 
   async #adminTelegramSelect(req, res) {

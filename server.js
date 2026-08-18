@@ -19,7 +19,7 @@ async function main() {
   const bitrix = new BitrixClient(config.bitrixWebhookBase);
   const telegram = new TelegramClient({ token: config.telegramBotToken, chatId: config.telegramPhotoChatId || config.telegramChatId, settingsFile: config.telegramSettingsFile, preferConfiguredChat: true });
   await telegram.init();
-  const telegramExpeditor = new TelegramClient({ token: config.telegramBotToken, chatId: config.telegramExpeditorChatId, settingsFile: config.telegramExpeditorSettingsFile });
+  const telegramExpeditor = new TelegramClient({ token: config.telegramExpeditorBotToken, chatId: config.telegramExpeditorChatId, settingsFile: config.telegramExpeditorSettingsFile });
   await telegramExpeditor.init();
   const multipart = new MultipartReader();
   const pendingChecks = new PendingCheckStore(config.checkStorageDir);
