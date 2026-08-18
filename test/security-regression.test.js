@@ -136,6 +136,8 @@ test('receiving is part of unified navigation and safely replaces an Excel file'
   const receivingHtml = await fs.readFile(path.join(ROOT, 'receiving-test', 'index.html'), 'utf8');
   const receivingJs = await fs.readFile(path.join(ROOT, 'receiving-test', 'app.js'), 'utf8');
   const appJs = await fs.readFile(path.join(ROOT, 'public', 'assets', 'app.js'), 'utf8');
+  const loadingCss = await fs.readFile(path.join(ROOT, 'public', 'assets', 'app-loading.css'), 'utf8');
+  const navCss = await fs.readFile(path.join(ROOT, 'public', 'assets', 'nav-fix.css'), 'utf8');
   const mainHtml = await fs.readFile(path.join(ROOT, 'public', 'index.html'), 'utf8');
 
   assert.match(receivingHtml, /class="receiving-nav"/);
@@ -145,7 +147,18 @@ test('receiving is part of unified navigation and safely replaces an Excel file'
   assert.match(receivingHtml, /id="replaceExcel"/);
   assert.match(receivingJs, /input\.value='';input\.click\(\)/);
   assert.match(receivingJs, /state\.query='';state\.complete=false/);
+  assert.match(receivingJs, /fetch\('\/api\/logout',\{method:'POST'\}\)/);
   assert.match(appJs, /new URLSearchParams\(location\.search\).*screen.*history/);
   assert.match(mainHtml, /class="app-loading" aria-label="Загрузка приложения"/);
+  assert.match(mainHtml, /class="auth" id="auth" hidden/);
+  assert.doesNotMatch(mainHtml, /assets\/role-router\.js/);
+  assert.match(appJs, /user\.role==='driver'.*location\.href='\/driver\/'/);
+  assert.match(appJs, /user\.role==='logist'.*location\.href='\/logist\/'/);
+  assert.match(appJs, /const showLogin=.*auth\.hidden=false/);
+  assert.match(loadingCss, /akfix-splash-out \.35s ease 2s forwards/);
+  assert.match(navCss, /overscroll-behavior-y:none/);
+  assert.match(navCss, /\.bottom-nav\{left:0!important;right:0!important/);
+  assert.match(navCss, /@keyframes akfix-screen-enter/);
+  assert.match(appJs, /b\.classList\.add\('opening'\);await openOrder/);
   assert.doesNotMatch(receivingHtml, /class="app-loading"/);
 });
