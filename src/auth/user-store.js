@@ -21,7 +21,7 @@ class UserStore {
     }
   }
 
-  #seed() { return this.seedUsers.map(user => ({ id: crypto.randomUUID(), ...user, login: (user.role || 'employee') === 'employee' ? user.name : user.login })); }
+  #seed() { return this.seedUsers.map(user => ({ id: crypto.randomUUID(), ...user })); }
 
   findByLogin(login) {
     const aliases = { ivan: 'иван', albert: 'альберт' };
@@ -29,31 +29,33 @@ class UserStore {
     const value = aliases[entered] || entered;
     return this.users.find(user => String(user.login).trim().toLocaleLowerCase('ru') === value) || null;
   }
-  listEmployees() { return this.users.filter(user => (user.role || 'employee') === 'employee').map(this.#public); }
+  listEmployees() { return this.users.filter(user => (user.role || 'employee') !== 'admin').map(this.#public); }
+  listDrivers() { return this.users.filter(user => user.role === 'driver').map(this.#public); }
 
   async createEmployee(input) {
-    const user = this.#validate({ ...input, role: 'employee' }, true);
+    const user = this.#validate(input, true);
     if (this.findByLogin(user.login)) throw new Error('LOGIN_ALREADY_EXISTS');
     const created = { id: crypto.randomUUID(), ...user };
     this.users.push(created); await this.#save(); return this.#public(created);
   }
 
   async updateEmployee(id, input) {
-    const index = this.users.findIndex(user => user.id === id && (user.role || 'employee') === 'employee');
+    const index = this.users.findIndex(user => user.id === id && (user.role || 'employee') !== 'admin');
     if (index < 0) throw new Error('EMPLOYEE_NOT_FOUND');
     const current = this.users[index];
-    const next = this.#validate({ ...current, ...input, pin: input.pin || current.pin, role: 'employee' }, false);
+    const next = this.#validate({ ...current, ...input, pin: input.pin || current.pin }, false);
     const duplicate = this.users.find(user => user.id !== id && String(user.login).toLocaleLowerCase('ru') === next.login.toLocaleLowerCase('ru'));
     if (duplicate) throw new Error('LOGIN_ALREADY_EXISTS');
     this.users[index] = { ...current, ...next, id: current.id }; await this.#save(); return this.#public(this.users[index]);
   }
 
   #validate(input, pinRequired) {
-    const login=String(input.login||'').trim(),name=String(input.name||'').trim(),warehouse=String(input.warehouse||'').trim(),pin=String(input.pin||'').trim();
+    const login=String(input.login||'').trim(),name=String(input.name||'').trim(),warehouse=String(input.warehouse||'').trim(),pin=String(input.pin||'').trim(),role=String(input.role||'employee');
     if (!login || login.length > 60 || !name || name.length > 100) throw new Error('INVALID_EMPLOYEE');
-    if (!['Мытищи','Балашиха'].includes(warehouse)) throw new Error('INVALID_WAREHOUSE');
+    if (!['employee','driver','logist'].includes(role)) throw new Error('INVALID_ROLE');
+    if (role === 'employee' && !['Мытищи','Балашиха'].includes(warehouse)) throw new Error('INVALID_WAREHOUSE');
     if ((pinRequired || input.pin) && !/^\d{4,12}$/.test(pin)) throw new Error('INVALID_PIN');
-    return { login, name, warehouse, pin, role: 'employee' };
+    return { login, name, warehouse: role === 'employee' ? warehouse : '', pin, role };
   }
 
   #public(user) { return { id:user.id,login:user.login,name:user.name,warehouse:user.warehouse,role:user.role||'employee' }; }

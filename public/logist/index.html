@@ -1,0 +1,5 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111114"><title>AKFIX — Логист</title><link rel="stylesheet" href="/logist/logist.css"></head>
+<body><main id="app" hidden><header><img src="/assets/logo.svg" alt="AKFIX"><div class="head-user"><b id="userName">—</b><small>Логист</small></div><button id="logout" class="icon" aria-label="Выйти">↗</button></header>
+<section id="list" class="page"><div class="heading"><div><h1>Отгрузки сегодня</h1><p id="sync">Данные из таблицы и Битрикс24</p></div><button id="refresh" class="icon" aria-label="Обновить">↻</button></div><div class="filters"><button class="active" data-filter="all">Все</button><button data-filter="attention">Требуют внимания</button><button data-filter="sent">Отправлены</button></div><div id="orders" class="orders"><div class="empty">Загрузка…</div></div></section>
+<section id="detailPage" class="page" hidden><button id="back" class="back">← К отгрузкам</button><div id="detail"></div></section></main><div id="toast"></div><script src="/logist/logist.js"></script></body></html>

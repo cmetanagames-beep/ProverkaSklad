@@ -1,9 +1,111 @@
-const CACHE='akfix-shell-v4',ASSETS=['/','/index.html','/assets/styles.css','/assets/app.js','/assets/offline.js','/assets/logo.svg','/manifest.webmanifest'];
-self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
-self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
-self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;event.respondWith(fetch(event.request,{cache:'no-store'}).then(r=>{if(r.ok){const key=event.request.mode==='navigate'?'/index.html':event.request;caches.open(CACHE).then(c=>c.put(key,r.clone()))}return r}).catch(()=>caches.match(event.request.mode==='navigate'?'/index.html':event.request))) });
-self.addEventListener('sync',event=>{if(event.tag==='akfix-upload')event.waitUntil(syncUploads())});
-function db(){return new Promise((resolve,reject)=>{const r=indexedDB.open('akfix-offline',1);r.onupgradeneeded=()=>r.result.createObjectStore('uploads',{keyPath:'id'});r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
-async function all(){const d=await db();return new Promise((resolve,reject)=>{const r=d.transaction('uploads').objectStore('uploads').getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
-async function del(id){const d=await db();return new Promise((resolve,reject)=>{const tx=d.transaction('uploads','readwrite');tx.objectStore('uploads').delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
-async function syncUploads(){const session=await fetch('/api/session');if(!session.ok)throw new Error('AUTH_REQUIRED');const current=(await session.json()).user;for(const item of (await all()).filter(row=>row.userLogin===current.login)){const form=new FormData();Object.entries(item.fields).forEach(([k,v])=>form.set(k,v));item.files.forEach(file=>form.append(file.key,file.blob,file.name));const response=await fetch('/api/checks/complete',{method:'POST',body:form});if(!response.ok)throw new Error(`UPLOAD_${response.status}`);await del(item.id)}}
+const CACHE = 'akfix-shell-v8';
+const ASSETS = [
+  '/', '/index.html', '/assets/styles.css', '/assets/strict-ui.css', '/assets/nav-fix.css', '/assets/app.js', '/assets/offline.js',
+  '/assets/role-router.js', '/assets/logo.svg', '/manifest.webmanifest',
+  '/driver/', '/driver/index.html', '/driver/driver.css', '/driver/driver-fix.css', '/driver/driver.js',
+  '/logist/', '/logist/index.html', '/logist/logist.css', '/logist/logist.js',
+  '/admin.html', '/assets/admin.css', '/assets/admin-users.css', '/assets/admin-strict.css', '/assets/admin.js',
+];
+
+self.addEventListener('install', event => event.waitUntil(
+  caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+));
+
+self.addEventListener('activate', event => event.waitUntil(
+  caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())
+));
+
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/api/')) return;
+  event.respondWith(
+    fetch(event.request, { cache:'no-store' }).then(response => {
+      if (response.ok) {
+        const key = event.request.mode === 'navigate'
+          ? (url.pathname.startsWith('/driver') ? '/driver/index.html' : url.pathname.startsWith('/logist') ? '/logist/index.html' : '/index.html')
+          : event.request;
+        caches.open(CACHE).then(cache => cache.put(key, response.clone()));
+      }
+      return response;
+    }).catch(() => {
+      if (event.request.mode === 'navigate') return caches.match(url.pathname.startsWith('/driver') ? '/driver/index.html' : url.pathname.startsWith('/logist') ? '/logist/index.html' : '/index.html');
+      return caches.match(event.request);
+    })
+  );
+});
+
+self.addEventListener('sync', event => {
+  if (event.tag === 'akfix-upload') event.waitUntil(syncWarehouseUploads());
+  if (event.tag === 'akfix-driver-upload') event.waitUntil(syncDriverUploads());
+});
+
+function warehouseDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('akfix-offline', 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('uploads', { keyPath:'id' });
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function driverDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('akfix-driver-offline', 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath:'key' });
+      if (!db.objectStoreNames.contains('details')) db.createObjectStore('details', { keyPath:'key' });
+      if (!db.objectStoreNames.contains('queue')) db.createObjectStore('queue', { keyPath:'id' });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function all(dbPromise, store) {
+  const db = await dbPromise;
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(store).objectStore(store).getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function remove(dbPromise, store, id) {
+  const db = await dbPromise;
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).delete(id);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function syncWarehouseUploads() {
+  const session = await fetch('/api/session');
+  if (!session.ok) throw new Error('AUTH_REQUIRED');
+  const current = (await session.json()).user;
+  for (const item of (await all(warehouseDb(), 'uploads')).filter(row => row.userLogin === current.login)) {
+    const form = new FormData();
+    Object.entries(item.fields).forEach(([key,value]) => form.set(key, value));
+    item.files.forEach(file => form.append(file.key, file.blob, file.name));
+    const response = await fetch('/api/checks/complete', { method:'POST', body:form });
+    if (!response.ok) throw new Error(`UPLOAD_${response.status}`);
+    await remove(warehouseDb(), 'uploads', item.id);
+  }
+}
+
+async function syncDriverUploads() {
+  const session = await fetch('/api/session');
+  if (!session.ok) throw new Error('AUTH_REQUIRED');
+  const current = (await session.json()).user;
+  for (const item of (await all(driverDb(), 'queue')).filter(row => row.userLogin === current.login)) {
+    const form = new FormData();
+    form.set('orderId', item.order.id);
+    if (item.photo) form.append('expeditorPhoto', item.photo, item.photoName || 'expeditor.jpg');
+    const response = await fetch('/api/driver/complete', { method:'POST', body:form });
+    if (!response.ok) throw new Error(`DRIVER_UPLOAD_${response.status}`);
+    await remove(driverDb(), 'queue', item.id);
+  }
+}

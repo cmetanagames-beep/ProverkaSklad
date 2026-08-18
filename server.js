@@ -9,6 +9,8 @@ const { MultipartReader } = require('./src/uploads/multipart-reader');
 const { CheckService } = require('./src/uploads/check-service');
 const { PendingCheckStore } = require('./src/uploads/pending-check-store');
 const { HistoryStore } = require('./src/uploads/history-store');
+const { ShippingSheetClient } = require('./src/integrations/shipping-sheet-client');
+const { DriverDeliveryStore } = require('./src/uploads/driver-delivery-store');
 
 async function main() {
   const userStore = new UserStore(config.userStorageFile, config.users);
@@ -20,8 +22,11 @@ async function main() {
   const multipart = new MultipartReader();
   const pendingChecks = new PendingCheckStore(config.checkStorageDir);
   const history = new HistoryStore(config.historyStorageDir);
+  const shippingSheet = new ShippingSheetClient({ spreadsheetId: config.shippingSpreadsheetId, sheetName: config.shippingSheetName });
+  const driverDeliveries = new DriverDeliveryStore(config.driverStorageFile, config.driverPhotoDir);
+  await driverDeliveries.init();
   const checks = new CheckService({ bitrix, telegram, pendingChecks, history });
-  const app = new Application({ publicDir: config.publicDir, receivingTestDir: config.receivingTestDir, sessions, bitrix, multipart, checks, history, userStore });
+  const app = new Application({ publicDir: config.publicDir, receivingTestDir: config.receivingTestDir, sessions, bitrix, multipart, checks, history, userStore, shippingSheet, driverDeliveries });
   http.createServer((req, res) => app.handle(req, res))
     .listen(config.port, '0.0.0.0', () => console.log(`ProverkaSklad listening on 0.0.0.0:${config.port}`));
 }
