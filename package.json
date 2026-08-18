@@ -2,7 +2,7 @@
   "name": "proverka-sklad",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@11.19.0",
+  "packageManager": "pnpm@10.34.5",
   "description": "Мобильная проверка складских заказов AKFIX",
   "scripts": {
     "start": "node server.js",
