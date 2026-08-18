@@ -2,7 +2,7 @@ const fs = require('fs/promises');
 const path = require('path');
 
 class TelegramClient {
-  constructor({ token, chatId, settingsFile, preferConfiguredChat = false }) { this.token = token; this.chatId = chatId; this.settingsFile = settingsFile; this.preferConfiguredChat = preferConfiguredChat; }
+  constructor({ token, chatId, settingsFile, preferConfiguredChat = false, confirmationText = '✅ AKFIX: Telegram-группа выбрана.' }) { this.token = token; this.chatId = chatId; this.settingsFile = settingsFile; this.preferConfiguredChat = preferConfiguredChat; this.confirmationText = confirmationText; }
   get configured() { return Boolean(this.token && this.chatId); }
   get selectedChatId() { return String(this.chatId || ''); }
 
@@ -28,7 +28,7 @@ class TelegramClient {
   async selectChat(chatId) {
     this.chatId = String(chatId);
     if (this.settingsFile) { await fs.mkdir(path.dirname(this.settingsFile), { recursive: true }); await fs.writeFile(this.settingsFile, JSON.stringify({ chatId: this.chatId, updatedAt: new Date().toISOString() })); }
-    return this.#sendText('✅ AKFIX: эта группа выбрана для фотографий склада и экспедиторских расписок.');
+    return this.#sendText(this.confirmationText);
   }
 
   async sendCheck(text, files) {
