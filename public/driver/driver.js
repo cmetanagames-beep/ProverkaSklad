@@ -1,6 +1,12 @@
 const $ = selector => document.querySelector(selector);
 const state = { user: null, orders: [], filter: 'active', offline: !navigator.onLine };
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[char]));
+const moscowIsoDate = (offsetDays = 0) => new Intl.DateTimeFormat('en-CA', { timeZone:'Europe/Moscow', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date(Date.now() + offsetDays * 86400000));
+const orderListDate = () => state.filter === 'tomorrow' ? moscowIsoDate(1) : moscowIsoDate();
+const isoFromSheetDate = value => {
+  const parts = String(value || '').match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  return parts ? `${parts[3]}-${parts[2].padStart(2, '0')}-${parts[1].padStart(2, '0')}` : moscowIsoDate();
+};
 
 const DriverOffline = {
   db() {
@@ -52,8 +58,8 @@ const DriverOffline = {
   },
   saveUser(user) { localStorage.setItem('akfix_driver_user', JSON.stringify(user)); },
   savedUser() { try { return JSON.parse(localStorage.getItem('akfix_driver_user')); } catch { return null; } },
-  saveOrders(login, orders) { return this.put('meta', { key: `orders:${login}`, value: orders, savedAt: new Date().toISOString() }); },
-  loadOrders(login) { return this.get('meta', `orders:${login}`); },
+  saveOrders(login, date, orders) { return this.put('meta', { key: `orders:${login}:${date}`, value: orders, savedAt: new Date().toISOString() }); },
+  loadOrders(login, date) { return this.get('meta', `orders:${login}:${date}`); },
   saveHistory(login, date, orders) { return this.put('meta', { key: `history:${login}:${date}`, value: orders, savedAt: new Date().toISOString() }); },
   loadHistory(login, date) { return this.get('meta', `history:${login}:${date}`); },
   saveDetail(login, id, detail) { return this.put('details', { key: `${login}:${id}`, value: detail, savedAt: new Date().toISOString() }); },
@@ -96,15 +102,16 @@ async function start(user) {
 }
 
 async function loadOrders() {
+  const date = orderListDate();
   setSyncText(navigator.onLine ? 'Обновляем назначения…' : 'Нет интернета · открываем сохранённые данные', !navigator.onLine);
   try {
     if (!navigator.onLine) throw new Error('OFFLINE');
-    state.orders = (await api('/api/driver/orders')).items;
-    await DriverOffline.saveOrders(state.user.login, state.orders);
-    cacheOrderDetails(state.orders);
-    setSyncText(`Назначено: ${state.orders.length} · обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`);
+    state.orders = (await api(`/api/driver/orders?date=${encodeURIComponent(date)}`)).items;
+    await DriverOffline.saveOrders(state.user.login, date, state.orders);
+    cacheOrderDetails(state.orders, date);
+    setSyncText(`${state.filter === 'tomorrow' ? 'На завтра' : 'Назначено'}: ${state.orders.length} · обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`);
   } catch {
-    state.orders = await DriverOffline.loadOrders(state.user.login) || [];
+    state.orders = await DriverOffline.loadOrders(state.user.login, date) || [];
     const queued = await DriverOffline.queued(state.user.login);
     state.orders = state.orders.map(order => {
       const pending = queued.find(item => item.order.id === order.id);
@@ -115,15 +122,15 @@ async function loadOrders() {
   renderOrders();
 }
 
-async function cacheOrderDetails(orders) {
+async function cacheOrderDetails(orders, date) {
   await Promise.allSettled(orders.map(async order => {
-    const detail = await api(`/api/driver/order?id=${encodeURIComponent(order.id)}`);
+    const detail = await api(`/api/driver/order?id=${encodeURIComponent(order.id)}&date=${encodeURIComponent(date)}`);
     await DriverOffline.saveDetail(state.user.login, order.id, detail);
   }));
 }
 
 function renderOrders() {
-  const rows = state.filter === 'history' ? state.orders : state.orders.filter(order => state.filter === 'done' ? order.completed : !order.completed);
+  const rows = ['history', 'tomorrow'].includes(state.filter) ? state.orders : state.orders.filter(order => state.filter === 'done' ? order.completed : !order.completed);
   $('#orders').innerHTML = rows.map(order => `<button class="order" data-id="${esc(order.id)}"><div><time>${esc(order.date || 'Дата не указана')}</time><h3>${esc(order.client || 'Клиент не указан')}</h3><p>Заказ № ${esc(order.orderNumber || '—')} · ${esc(order.warehouse || 'Склад не указан')}</p><span class="tag ${/^тк(?:\s|$)/i.test(order.delivery) ? 'tk' : ''}">${esc(order.delivery || 'Доставка не указана')}</span>${order.completed ? `<div class="done-mark">${order.completed.queued ? '◷ Ожидает отправки' : '✓ Отправлено'}</div>` : ''}</div><span class="chev">›</span></button>`).join('') || '<div class="empty">В этом разделе пока нет рейсов</div>';
   document.querySelectorAll('[data-id]').forEach(button => button.onclick = () => openOrder(button.dataset.id));
 }
@@ -174,7 +181,7 @@ async function openOrder(id) {
     }
     if (!detail && navigator.onLine) {
       try {
-        detail = await api(`/api/driver/order?id=${encodeURIComponent(id)}`);
+        detail = await api(`/api/driver/order?id=${encodeURIComponent(id)}&date=${encodeURIComponent(orderListDate())}`);
         await DriverOffline.saveDetail(state.user.login, id, detail);
       } catch {
         detail = await DriverOffline.loadDetail(state.user.login, id);
@@ -193,7 +200,7 @@ async function markQueued(order, photo) {
   await DriverOffline.enqueue(state.user, order, photo);
   const current = state.orders.find(item => item.id === order.id);
   if (current) current.completed = { queued: true, completedAt: new Date().toISOString() };
-  await DriverOffline.saveOrders(state.user.login, state.orders);
+  await DriverOffline.saveOrders(state.user.login, isoFromSheetDate(order.date), state.orders);
   navigator.serviceWorker?.ready.then(registration => registration.sync?.register('akfix-driver-upload')).catch(() => {});
   toast('Сохранено на телефоне. Отправим после появления интернета.');
   renderDetail({ order, bitrix: (await DriverOffline.loadDetail(state.user.login, order.id))?.bitrix, completed: current.completed });
@@ -208,6 +215,7 @@ async function complete(event, order) {
   if (!navigator.onLine) return markQueued(order, photo);
   const form = new FormData();
   form.set('orderId', order.id);
+  form.set('date', isoFromSheetDate(order.date));
   if (photo) form.append('expeditorPhoto', photo, photo.name || 'expeditor.jpg');
   try {
     await api('/api/driver/complete', { method: 'POST', body: form });
@@ -232,6 +240,7 @@ async function syncQueue() {
   for (const item of items) {
     const form = new FormData();
     form.set('orderId', item.order.id);
+    form.set('date', isoFromSheetDate(item.order.date));
     if (item.photo) form.append('expeditorPhoto', item.photo, item.photoName);
     try {
       await api('/api/driver/complete', { method: 'POST', body: form });
@@ -266,7 +275,7 @@ document.querySelectorAll('[data-filter]').forEach(button => button.onclick = ()
   if (state.filter === 'history') loadHistory(); else loadOrders();
 });
 
-addEventListener('online', () => { state.offline = false; toast('Интернет появился. Отправляем сохранённые данные…'); syncQueue(); loadOrders(); });
+addEventListener('online', () => { state.offline = false; toast('Интернет появился. Отправляем сохранённые данные…'); syncQueue(); state.filter === 'history' ? loadHistory() : loadOrders(); });
 addEventListener('offline', () => { state.offline = true; toast('Нет интернета. Можно продолжать работу офлайн.'); setSyncText(`Офлайн · сохранено заказов: ${state.orders.length}`, true); });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { updateViaCache:'none' }).then(registration => registration.update()).catch(() => {});
