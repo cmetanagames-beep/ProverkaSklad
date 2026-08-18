@@ -61,6 +61,29 @@ class BitrixClient {
     return this.call('crm.item.get', { entityTypeId: 1052, id: Number(orderId) });
   }
 
+  async findItemByOrderNumber(orderNumber) {
+    const digits = String(orderNumber || '').replace(/\D/g, '');
+    if (!digits) throw new Error('BITRIX_ORDER_NUMBER_REQUIRED');
+    const reference = `АФУТ-${digits.padStart(6, '0')}`;
+    const definitionsResult = await this.getItemFields();
+    const definitions = definitionsResult.fields || definitionsResult;
+    const numberField = Object.entries(definitions).find(([, definition]) =>
+      String(definition.title || '').trim().toLocaleLowerCase('ru') === 'номер счета'
+    )?.[0];
+    const result = await this.call('crm.item.list', {
+      entityTypeId: 1052,
+      filter: numberField ? { [numberField]: reference } : { '%title': reference },
+      select: ['id', 'title', ...(numberField ? [numberField] : [])],
+      order: { id: 'DESC' },
+    });
+    const items = Array.isArray(result) ? result : result.items || [];
+    const item = items.find(candidate => numberField
+      ? String(candidate[numberField] || '').toLocaleUpperCase('ru') === reference
+      : String(candidate.title || '').toLocaleUpperCase('ru').includes(reference));
+    if (!item?.id) throw new Error(`BITRIX_ORDER_NOT_FOUND: ${reference}`);
+    return this.getItem(item.id);
+  }
+
   async getItemFields() {
     if (!this.itemFields) this.itemFields = await this.call('crm.item.fields', { entityTypeId: 1052 });
     return this.itemFields;

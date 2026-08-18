@@ -125,8 +125,8 @@ class Application {
     const row = (await this.#rowsForDriver(user)).find(item => item.id === sheetId);
     if (!row) return sendJson(res, 404, { error: 'ORDER_NOT_FOUND' });
     let bitrix = { fields: [] };
-    if (row.bitrixId && this.bitrix.configured) {
-      const [result, fieldResult] = await Promise.all([this.bitrix.getItem(row.bitrixId), this.bitrix.getItemFields()]);
+    if (row.orderNumber && this.bitrix.configured) {
+      const [result, fieldResult] = await Promise.all([this.bitrix.findItemByOrderNumber(row.orderNumber), this.bitrix.getItemFields()]);
       const item = result.item || result;
       bitrix = { title: String(item.title || ''), fields: driverBitrixFields(item, fieldResult.fields || fieldResult) };
     }
@@ -142,7 +142,12 @@ class Application {
     const needsPhoto = /^тк(?:\s|$)/i.test(row.delivery);
     const file = payload.files.find(item => item.name === 'expeditorPhoto') || payload.files[0];
     if (needsPhoto && !file) return sendJson(res, 400, { error: 'EXPEDITOR_PHOTO_REQUIRED' });
-    if (row.bitrixId && this.bitrix.configured) await this.bitrix.completeDriverDelivery({ orderId: row.bitrixId, driverName: user.name, delivery: row.delivery, file });
+    let bitrixItemId = '';
+    if (row.orderNumber && this.bitrix.configured) {
+      const result = await this.bitrix.findItemByOrderNumber(row.orderNumber);
+      bitrixItemId = String((result.item || result).id || '');
+      await this.bitrix.completeDriverDelivery({ orderId: bitrixItemId, driverName: user.name, delivery: row.delivery, file });
+    }
     if (file && this.telegramExpeditor.configured) {
       const caption = [
         'ЭКСПЕДИТОРСКАЯ РАСПИСКА',
@@ -155,7 +160,7 @@ class Application {
       await this.telegramExpeditor.sendCheck(caption, [file]);
     }
     const photo = await this.driverDeliveries.savePhoto(file);
-    const completed = await this.driverDeliveries.complete({ login: user.login, driverName: user.name, orderId: row.id, bitrixId: row.bitrixId, order: row, completedAt: new Date().toISOString(), hasPhoto: Boolean(file), photo });
+    const completed = await this.driverDeliveries.complete({ login: user.login, driverName: user.name, orderId: row.id, bitrixId: bitrixItemId, order: row, completedAt: new Date().toISOString(), hasPhoto: Boolean(file), photo });
     sendJson(res, 200, { ok: true, completed });
   }
 
@@ -174,8 +179,8 @@ class Application {
     const row = (await this.shippingSheet.listToday()).find(item => item.id === id);
     if (!row) return sendJson(res, 404, { error: 'ORDER_NOT_FOUND' });
     let item, definitions = {};
-    if (row.bitrixId && this.bitrix.configured) {
-      const [result, fieldResult] = await Promise.all([this.bitrix.getItem(row.bitrixId), this.bitrix.getItemFields()]);
+    if (row.orderNumber && this.bitrix.configured) {
+      const [result, fieldResult] = await Promise.all([this.bitrix.findItemByOrderNumber(row.orderNumber), this.bitrix.getItemFields()]);
       item = result.item || result; definitions = fieldResult.fields || fieldResult;
     } else item = {};
     item = { ...item, ...this.driverDeliveries.bitrixOverride(row.id) };
@@ -191,10 +196,13 @@ class Application {
     const row = (await this.shippingSheet.listToday()).find(item => item.id === String(orderId));
     if (!row) return sendJson(res, 404, { error: 'ORDER_NOT_FOUND' });
     const clean = Object.fromEntries(Object.entries(fields || {}).filter(([key,value]) => /^[a-zA-Z][a-zA-Z0-9_]*$/.test(key) && typeof value === 'string').map(([key,value]) => [key, value.trim().slice(0, 5000)]));
-    if (row.bitrixId && this.bitrix.configured) {
+    if (row.orderNumber && this.bitrix.configured) {
       const definitionsResult = await this.bitrix.getItemFields(); const definitions = definitionsResult.fields || definitionsResult;
       for (const key of Object.keys(clean)) if (!definitions[key] || definitions[key].isReadOnly) delete clean[key];
-      if (Object.keys(clean).length) await this.bitrix.updateItem(row.bitrixId, clean);
+      if (Object.keys(clean).length) {
+        const result = await this.bitrix.findItemByOrderNumber(row.orderNumber);
+        await this.bitrix.updateItem((result.item || result).id, clean);
+      }
     }
     await this.driverDeliveries.saveBitrixOverride(row.id, clean, user);
     sendJson(res, 200, { ok: true });
