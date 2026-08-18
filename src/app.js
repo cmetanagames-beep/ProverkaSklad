@@ -55,6 +55,7 @@ class Application {
       if (url.pathname === '/api/admin/telegram/chats' && req.method === 'GET') return this.#adminTelegramChats(req, res);
       if (url.pathname === '/api/admin/telegram/select' && req.method === 'POST') return this.#adminTelegramSelect(req, res);
       if (url.pathname.startsWith('/api/bitrix/') && req.method === 'POST') return await this.#proxyBitrix(req, res, url.pathname.slice('/api/bitrix/'.length));
+      if (url.pathname === '/receiving') { res.writeHead(308, { Location: '/receiving/' }); return res.end(); }
       if (url.pathname === '/receiving-test') { res.writeHead(308, { Location: '/receiving-test/' }); return res.end(); }
       return this.#static(req, res, url.pathname);
     } catch (error) {
@@ -314,10 +315,10 @@ class Application {
     if (!['GET','HEAD'].includes(req.method)) return sendJson(res, 405, { error: 'METHOD_NOT_ALLOWED' });
     const isDriver = pathname === '/driver' || pathname.startsWith('/driver/');
     const isLogist = pathname === '/logist' || pathname.startsWith('/logist/');
-    const isReceivingTest = pathname === '/receiving-test' || pathname.startsWith('/receiving-test/');
+    const isReceivingTest = pathname === '/receiving' || pathname.startsWith('/receiving/') || pathname === '/receiving-test' || pathname.startsWith('/receiving-test/');
     const baseDir = isDriver ? path.join(this.publicDir, 'driver') : isLogist ? path.join(this.publicDir, 'logist') : (isReceivingTest ? this.receivingTestDir : this.publicDir);
     const relative = isReceivingTest
-      ? (pathname === '/receiving-test' || pathname === '/receiving-test/' ? 'index.html' : decodeURIComponent(pathname.slice('/receiving-test/'.length)))
+      ? (pathname === '/receiving' || pathname === '/receiving/' || pathname === '/receiving-test' || pathname === '/receiving-test/' ? 'index.html' : decodeURIComponent(pathname.startsWith('/receiving/') ? pathname.slice('/receiving/'.length) : pathname.slice('/receiving-test/'.length)))
       : isDriver ? (pathname === '/driver' || pathname === '/driver/' ? 'index.html' : decodeURIComponent(pathname.slice('/driver/'.length)))
       : isLogist ? (pathname === '/logist' || pathname === '/logist/' ? 'index.html' : decodeURIComponent(pathname.slice('/logist/'.length)))
       : (pathname === '/' ? 'index.html' : decodeURIComponent(pathname).replace(/^\/+/, ''));
