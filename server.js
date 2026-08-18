@@ -19,6 +19,8 @@ async function main() {
   const bitrix = new BitrixClient(config.bitrixWebhookBase);
   const telegram = new TelegramClient({ token: config.telegramBotToken, chatId: config.telegramPhotoChatId || config.telegramChatId, settingsFile: config.telegramSettingsFile, preferConfiguredChat: true });
   await telegram.init();
+  const telegramExpeditor = new TelegramClient({ token: config.telegramBotToken, chatId: config.telegramExpeditorChatId, settingsFile: config.telegramExpeditorSettingsFile });
+  await telegramExpeditor.init();
   const multipart = new MultipartReader();
   const pendingChecks = new PendingCheckStore(config.checkStorageDir);
   const history = new HistoryStore(config.historyStorageDir);
@@ -26,7 +28,7 @@ async function main() {
   const driverDeliveries = new DriverDeliveryStore(config.driverStorageFile, config.driverPhotoDir);
   await driverDeliveries.init();
   const checks = new CheckService({ bitrix, telegram, pendingChecks, history });
-  const app = new Application({ publicDir: config.publicDir, receivingTestDir: config.receivingTestDir, sessions, bitrix, multipart, checks, history, userStore, shippingSheet, driverDeliveries });
+  const app = new Application({ publicDir: config.publicDir, receivingTestDir: config.receivingTestDir, sessions, bitrix, multipart, checks, history, userStore, shippingSheet, driverDeliveries, telegramExpeditor });
   http.createServer((req, res) => app.handle(req, res))
     .listen(config.port, '0.0.0.0', () => console.log(`ProverkaSklad listening on 0.0.0.0:${config.port}`));
 }

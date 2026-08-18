@@ -5,7 +5,7 @@ const { sendJson, readJson } = require('./http/response');
 const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.webmanifest':'application/manifest+json','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml'};
 
 class Application {
-  constructor({ publicDir, receivingTestDir, sessions, bitrix, multipart, checks, history, userStore, shippingSheet, driverDeliveries }) {
+  constructor({ publicDir, receivingTestDir, sessions, bitrix, multipart, checks, history, userStore, shippingSheet, driverDeliveries, telegramExpeditor }) {
     this.publicDir = publicDir;
     this.receivingTestDir = receivingTestDir;
     this.sessions = sessions;
@@ -16,6 +16,7 @@ class Application {
     this.userStore = userStore;
     this.shippingSheet = shippingSheet;
     this.driverDeliveries = driverDeliveries;
+    this.telegramExpeditor = telegramExpeditor;
     this.orderLocks = new Map();
     this.version = process.env.APP_VERSION || `${Date.now()}`;
   }
@@ -54,6 +55,7 @@ class Application {
       if (url.pathname === '/api/admin/users/update' && req.method === 'POST') return this.#adminUpdateUser(req, res);
       if (url.pathname === '/api/admin/telegram/chats' && req.method === 'GET') return this.#adminTelegramChats(req, res);
       if (url.pathname === '/api/admin/telegram/select' && req.method === 'POST') return this.#adminTelegramSelect(req, res);
+      if (url.pathname === '/api/admin/telegram/expeditor/select' && req.method === 'POST') return this.#adminTelegramExpeditorSelect(req, res);
       if (url.pathname.startsWith('/api/bitrix/') && req.method === 'POST') return await this.#proxyBitrix(req, res, url.pathname.slice('/api/bitrix/'.length));
       if (url.pathname === '/receiving') { res.writeHead(308, { Location: '/receiving/' }); return res.end(); }
       if (url.pathname === '/receiving-test') { res.writeHead(308, { Location: '/receiving-test/' }); return res.end(); }
@@ -65,7 +67,7 @@ class Application {
     }
   }
 
-  #health(res) { sendJson(res, 200, { ok: true, bitrixConfigured: this.bitrix.configured, telegramConfigured: this.checks.telegram.configured }); }
+  #health(res) { sendJson(res, 200, { ok: true, bitrixConfigured: this.bitrix.configured, telegramConfigured: this.checks.telegram.configured, telegramExpeditorConfigured: this.telegramExpeditor.configured }); }
   #user(req, res) { const user = this.sessions.userFromRequest(req); if (!user) sendJson(res, 401, { error: 'AUTH_REQUIRED' }); return user; }
   #admin(req, res) { const user = this.#user(req, res); if (!user) return null; if ((user.role || 'employee') !== 'admin') { sendJson(res, 403, { error: 'ADMIN_REQUIRED' }); return null; } return user; }
   #session(req, res) { const user = this.#user(req, res); if (user) sendJson(res, 200, { user: this.sessions.publicUser(user) }); }
@@ -124,7 +126,7 @@ class Application {
     const file = payload.files.find(item => item.name === 'expeditorPhoto') || payload.files[0];
     if (needsPhoto && !file) return sendJson(res, 400, { error: 'EXPEDITOR_PHOTO_REQUIRED' });
     if (row.bitrixId && this.bitrix.configured) await this.bitrix.completeDriverDelivery({ orderId: row.bitrixId, driverName: user.name, delivery: row.delivery, file });
-    if (file && this.checks.telegram.configured) {
+    if (file && this.telegramExpeditor.configured) {
       const caption = [
         'ЭКСПЕДИТОРСКАЯ РАСПИСКА',
         `Заказ: ${row.orderNumber || '—'}`,
@@ -133,7 +135,7 @@ class Application {
         `Доставка: ${row.delivery || '—'}`,
         `Дата: ${row.date || new Date().toLocaleDateString('ru-RU')}`,
       ].join('\n');
-      await this.checks.telegram.sendCheck(caption, [file]);
+      await this.telegramExpeditor.sendCheck(caption, [file]);
     }
     const photo = await this.driverDeliveries.savePhoto(file);
     const completed = await this.driverDeliveries.complete({ login: user.login, driverName: user.name, orderId: row.id, bitrixId: row.bitrixId, order: row, completedAt: new Date().toISOString(), hasPhoto: Boolean(file), photo });
@@ -303,13 +305,22 @@ class Application {
 
   async #adminTelegramChats(req, res) {
     if (!this.#admin(req, res)) return;
-    sendJson(res, 200, { items: await this.checks.telegram.listChats() });
+    const warehouseId = this.checks.telegram.selectedChatId, expeditorId = this.telegramExpeditor.selectedChatId;
+    const items = (await this.checks.telegram.listChats()).map(chat => ({ ...chat, current: undefined, warehouse: chat.id === warehouseId, expeditor: chat.id === expeditorId }));
+    sendJson(res, 200, { items });
   }
 
   async #adminTelegramSelect(req, res) {
     if (!this.#admin(req, res)) return;
     const { chatId } = await readJson(req);
     await this.checks.telegram.selectChat(chatId);
+    sendJson(res, 200, { ok: true });
+  }
+
+  async #adminTelegramExpeditorSelect(req, res) {
+    if (!this.#admin(req, res)) return;
+    const { chatId } = await readJson(req);
+    await this.telegramExpeditor.selectChat(chatId);
     sendJson(res, 200, { ok: true });
   }
 

@@ -4,6 +4,7 @@ const path = require('path');
 class TelegramClient {
   constructor({ token, chatId, settingsFile, preferConfiguredChat = false }) { this.token = token; this.chatId = chatId; this.settingsFile = settingsFile; this.preferConfiguredChat = preferConfiguredChat; }
   get configured() { return Boolean(this.token && this.chatId); }
+  get selectedChatId() { return String(this.chatId || ''); }
 
   async init() {
     if (!this.settingsFile) return;
