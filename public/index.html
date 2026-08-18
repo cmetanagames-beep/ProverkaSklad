@@ -17,7 +17,7 @@
 <body>
 <section class="auth" id="auth"><form class="auth-card" id="loginForm"><img class="brand-logo auth-logo" src="/assets/logo.svg" alt="AKFIX"><h1>Вход сотрудника</h1><p class="sub">Войдите под своей учётной записью. Склад определяется автоматически.</p><label class="auth-field"><span>Логин</span><input id="login" autocomplete="username" required placeholder="Например, Иван"></label><label class="auth-field"><span>PIN-код</span><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" required placeholder="••••"></label><div class="auth-error" id="authError"></div><button class="primary" id="loginButton">Войти</button><p class="auth-note">Если вы не знаете логин или PIN — обратитесь к руководителю склада.</p></form></section>
 <div class="uploading" id="uploading"><div><div class="loader"></div><h2>Сохраняем проверку</h2><p class="sub">При отсутствии интернета фото останутся на телефоне и отправятся позже.</p></div></div>
-<main class="shell">
+<main class="shell" id="appShell" hidden>
   <header class="top" id="top"><img class="brand-logo header-logo" src="/assets/logo.svg" alt="AKFIX"><button class="head-user" data-help aria-label="Инструкция"><span>Е</span><b>Евгений</b><i>Помощь</i></button></header>
   <section class="screen active" data-screen="orders">
     <div class="orders-title"><div><h1>Заказы на проверку</h1><p>Выберите заказ и начните проверку</p></div><div class="work-stage"><span><small>Этап</small><b>Проверка</b></span></div></div>
@@ -68,7 +68,7 @@
   </section>
   <section class="screen" data-screen="success"><div class="success"><div class="success-icon">✓</div><h1>Проверка выгружена</h1><p class="sub">Фотографии и данные отправлены в Bitrix24 и Telegram.</p><div class="summary" id="summary"></div><button class="secondary" id="again">Вернуться к заказам</button></div></section>
 </main>
-<nav class="bottom-nav" id="bottomNav"><button class="active" data-nav="orders">Заказы</button><button data-nav="receiving">Приёмка</button><button data-nav="history">История <i id="queueBadge"></i></button></nav>
+<nav class="bottom-nav" id="bottomNav" hidden><button class="active" data-nav="orders">Заказы</button><button data-nav="receiving">Приёмка</button><button data-nav="history">История <i id="queueBadge"></i></button></nav>
 <div class="toast" id="toast"></div>
 <div class="modal" id="helpModal"><section class="sheet"><div class="sheet-head"><h2>Как работать</h2><button class="sheet-close" id="closeHelp">×</button></div><div class="help-list"><div class="help-row"><i>1</i><span><b>Выберите заказ</b><small>Откройте нужный номер из списка Bitrix24.</small></span></div><div class="help-row"><i>2</i><span><b>Проверьте свой склад</b><small>Если товара нет — отметьте это. Если есть — укажите особые товары и палеты.</small></span></div><div class="help-row"><i>3</i><span><b>Снимите каждую палету</b><small>Первая сторона, противоположная сторона и вид сверху.</small></span></div><div class="help-row"><i>4</i><span><b>Выгрузите результат</b><small>После проверки двух складов фото попадут в Bitrix24 и Telegram.</small></span></div></div><button class="primary" id="understood">Понятно</button></section></div>
 <script src="/assets/role-router.js" defer></script><script src="/assets/offline.js" defer></script><script src="/assets/app.js" defer></script>

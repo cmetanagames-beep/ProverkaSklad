@@ -1,0 +1,17 @@
+.logout-button {
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-left: 16px;
+  border: 1px solid #dedee2;
+  border-radius: 10px;
+  background: #fff;
+  color: #252529;
+  font-weight: 800;
+  padding: 0 14px;
+}
+.logout-button:hover { background: #fff4f6; border-color: var(--red); color: var(--red); }
+.logout-button:focus-visible { outline: 3px solid #f5b8c3; outline-offset: 2px; }
+@media (max-width: 760px) { .logout-button { height: 40px; margin-left: 10px; padding: 0 11px; } }
