@@ -162,3 +162,16 @@ test('receiving is part of unified navigation and safely replaces an Excel file'
   assert.match(appJs, /b\.classList\.add\('opening'\);await openOrder/);
   assert.doesNotMatch(receivingHtml, /class="app-loading"/);
 });
+
+test('interactive presentation is public, animated and keyboard accessible', async () => {
+  const response = await fetch(`${BASE}/presentation/`);
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /Вся работа —<br\s*\/>в одном<br\s*\/>приложении/);
+
+  const script = await fs.readFile(path.join(ROOT, 'public', 'presentation', 'app.js'), 'utf8');
+  const styles = await fs.readFile(path.join(ROOT, 'public', 'presentation', 'styles.css'), 'utf8');
+  assert.match(script, /ArrowRight/);
+  assert.match(script, /touchstart/);
+  assert.match(script, /requestFullscreen/);
+  assert.match(styles, /prefers-reduced-motion:\s*reduce/);
+});
