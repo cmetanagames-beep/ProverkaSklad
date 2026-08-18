@@ -17,6 +17,7 @@ module.exports = {
   receivingTestDir: path.resolve(__dirname, '..', 'receiving-test'),
   bitrixWebhookBase: String(process.env.BITRIX_WEBHOOK_BASE || '').replace(/\/+$/, ''),
   telegramBotToken: String(process.env.TELEGRAM_BOT_TOKEN || ''),
+  telegramExpeditorBotToken: String(process.env.TELEGRAM_EXPEDITOR_BOT_TOKEN || ''),
   telegramChatId: String(process.env.TELEGRAM_CHAT_ID || ''),
   telegramPhotoChatId: String(process.env.TELEGRAM_PHOTO_CHAT_ID || '-1002084123169'),
   telegramSettingsFile: path.resolve(process.env.TELEGRAM_SETTINGS_FILE || path.join(__dirname, '..', 'data', 'telegram.json')),
