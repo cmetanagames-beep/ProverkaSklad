@@ -27,7 +27,7 @@ class TelegramClient {
   async selectChat(chatId) {
     this.chatId = String(chatId);
     if (this.settingsFile) { await fs.mkdir(path.dirname(this.settingsFile), { recursive: true }); await fs.writeFile(this.settingsFile, JSON.stringify({ chatId: this.chatId, updatedAt: new Date().toISOString() })); }
-    return this.#sendText('✅ AKFIX: эта группа выбрана для фотографий проверки склада.');
+    return this.#sendText('✅ AKFIX: эта группа выбрана для фотографий склада и экспедиторских расписок.');
   }
 
   async sendCheck(text, files) {
