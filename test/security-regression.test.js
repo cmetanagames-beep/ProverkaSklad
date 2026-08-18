@@ -62,6 +62,12 @@ test('receiving data is validated and persisted on the server', async () => {
   assert.deepEqual(saved.item.rows, payload.rows);
   const disk = JSON.parse(await fs.readFile(path.join(tempDir, 'receiving.json'), 'utf8'));
   assert.equal(disk.receiver.fileName, payload.fileName);
+
+  const replacement = { fileName: 'новая-приёмка.csv', products: [{ article: 'B2', name: 'Новый товар', plan: 3, pack: '' }], rows: [{ done: false, alloc: [{ qty: 3, expiry: '', cell: '', comment: '' }] }] };
+  assert.equal((await fetch(`${BASE}/api/receiving`, { method: 'PUT', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(replacement) })).status, 200);
+  const replaced = await (await fetch(`${BASE}/api/receiving`, { headers: { Cookie: cookie } })).json();
+  assert.equal(replaced.item.fileName, replacement.fileName);
+  assert.deepEqual(replaced.item.products, replacement.products);
 });
 
 test('malformed JSON is rejected without stopping the service', async () => {
@@ -124,4 +130,22 @@ test('unauthenticated app stays hidden and role controls remain usable on mobile
   assert.match(driverCss, /\.tabs button\{flex:1 1 0;min-width:0/);
   assert.match(logistHtml, /class="logout-button" aria-label="Выйти из приложения">Выйти<\/button>/);
   assert.doesNotMatch(logistHtml, />↗<\/button>/);
+});
+
+test('receiving is part of unified navigation and safely replaces an Excel file', async () => {
+  const receivingHtml = await fs.readFile(path.join(ROOT, 'receiving-test', 'index.html'), 'utf8');
+  const receivingJs = await fs.readFile(path.join(ROOT, 'receiving-test', 'app.js'), 'utf8');
+  const appJs = await fs.readFile(path.join(ROOT, 'public', 'assets', 'app.js'), 'utf8');
+  const mainHtml = await fs.readFile(path.join(ROOT, 'public', 'index.html'), 'utf8');
+
+  assert.match(receivingHtml, /class="receiving-nav"/);
+  assert.match(receivingHtml, /href="\/">Заказы<\/a>/);
+  assert.match(receivingHtml, /href="\/receiving\/" aria-current="page">Приёмка<\/a>/);
+  assert.match(receivingHtml, /href="\/\?screen=history">История<\/a>/);
+  assert.match(receivingHtml, /id="replaceExcel"/);
+  assert.match(receivingJs, /input\.value='';input\.click\(\)/);
+  assert.match(receivingJs, /state\.query='';state\.complete=false/);
+  assert.match(appJs, /new URLSearchParams\(location\.search\).*screen.*history/);
+  assert.match(mainHtml, /class="app-loading" aria-label="Загрузка приложения"/);
+  assert.doesNotMatch(receivingHtml, /class="app-loading"/);
 });
