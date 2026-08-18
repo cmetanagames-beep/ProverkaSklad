@@ -127,7 +127,8 @@ class Application {
     let bitrix = { fields: [] };
     if (row.bitrixId && this.bitrix.configured) {
       const [result, fieldResult] = await Promise.all([this.bitrix.getItem(row.bitrixId), this.bitrix.getItemFields()]);
-      bitrix = { fields: driverBitrixFields(result.item || result, fieldResult.fields || fieldResult) };
+      const item = result.item || result;
+      bitrix = { title: String(item.title || ''), fields: driverBitrixFields(item, fieldResult.fields || fieldResult) };
     }
     sendJson(res, 200, { order: row, bitrix, completed: this.driverDeliveries.get(user.login, row.id) }, { 'Cache-Control': 'no-store' });
   }
