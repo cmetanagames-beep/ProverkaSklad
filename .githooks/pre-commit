@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+echo "→ Проверки AKFIX перед коммитом"
+corepack pnpm run quality
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --config=.gitleaks.toml --redact
+else
+  echo "→ gitleaks локально не установлен; секреты проверит CI"
+fi
+
+echo "→ Проверки пройдены"
