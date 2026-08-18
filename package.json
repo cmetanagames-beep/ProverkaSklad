@@ -5,13 +5,13 @@
   "description": "Мобильная проверка складских заказов AKFIX",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check src/app.js && node --check src/config.js && node --check src/auth/user-store.js && node --check src/integrations/bitrix-client.js && node --check src/integrations/shipping-sheet-client.js && node --check src/uploads/driver-delivery-store.js && node --check src/uploads/check-service.js && node --check src/uploads/pending-check-store.js && node --check src/uploads/history-store.js && node --check public/assets/offline.js && node --check public/sw.js && node --check public/assets/app.js && node --check public/assets/admin.js && node --check public/assets/role-router.js && node --check public/driver/driver.js && node --check public/logist/logist.js && node --check receiving-test/app.js"
+    "check": "node --check server.js && node --check src/app.js && node --check src/config.js && node --check src/auth/user-store.js && node --check src/integrations/bitrix-client.js && node --check src/integrations/shipping-sheet-client.js && node --check src/uploads/driver-delivery-store.js && node --check src/uploads/check-service.js && node --check src/uploads/pending-check-store.js && node --check src/uploads/history-store.js && node --check src/uploads/receiving-store.js && node --check public/assets/offline.js && node --check public/sw.js && node --check public/assets/app.js && node --check public/assets/admin.js && node --check public/assets/role-router.js && node --check public/driver/driver.js && node --check public/logist/logist.js && node --check receiving-test/app.js && node --test test/security-regression.test.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
     "busboy": "^1.6.0",
-    "xlsx": "^0.18.5"
+    "exceljs": "^4.4.0"
   }
 }

@@ -11,6 +11,7 @@ const { PendingCheckStore } = require('./src/uploads/pending-check-store');
 const { HistoryStore } = require('./src/uploads/history-store');
 const { ShippingSheetClient } = require('./src/integrations/shipping-sheet-client');
 const { DriverDeliveryStore } = require('./src/uploads/driver-delivery-store');
+const { ReceivingStore } = require('./src/uploads/receiving-store');
 
 async function main() {
   const userStore = new UserStore(config.userStorageFile, config.users);
@@ -27,9 +28,19 @@ async function main() {
   const shippingSheet = new ShippingSheetClient({ spreadsheetId: config.shippingSpreadsheetId, sheetName: config.shippingSheetName });
   const driverDeliveries = new DriverDeliveryStore(config.driverStorageFile, config.driverPhotoDir);
   await driverDeliveries.init();
+  const receiving = new ReceivingStore(config.receivingStorageFile);
+  await receiving.init();
   const checks = new CheckService({ bitrix, telegram, pendingChecks, history });
-  const app = new Application({ publicDir: config.publicDir, receivingTestDir: config.receivingTestDir, sessions, bitrix, multipart, checks, history, userStore, shippingSheet, driverDeliveries, telegramExpeditor });
-  http.createServer((req, res) => app.handle(req, res))
+  const app = new Application({ publicDir: config.publicDir, receivingTestDir: config.receivingTestDir, sessions, bitrix, multipart, checks, history, userStore, shippingSheet, driverDeliveries, telegramExpeditor, receiving });
+  http.createServer((req, res) => {
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
+    if (process.env.NODE_ENV === 'production') res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    app.handle(req, res);
+  })
     .listen(config.port, '0.0.0.0', () => console.log(`ProverkaSklad listening on 0.0.0.0:${config.port}`));
 }
 

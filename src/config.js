@@ -29,6 +29,7 @@ module.exports = {
   userStorageFile: path.resolve(process.env.USER_STORAGE_FILE || path.join(__dirname, '..', 'data', 'users.json')),
   driverStorageFile: path.resolve(process.env.DRIVER_STORAGE_FILE || path.join(__dirname, '..', 'data', 'driver-deliveries.json')),
   driverPhotoDir: path.resolve(process.env.DRIVER_PHOTO_DIR || path.join(__dirname, '..', 'data', 'driver-photos')),
+  receivingStorageFile: path.resolve(process.env.RECEIVING_STORAGE_FILE || path.join(__dirname, '..', 'data', 'receiving.json')),
   shippingSpreadsheetId: String(process.env.SHIPPING_SPREADSHEET_ID || '18H4xoO7DFMsIml68G-Ama_fxjc3EW8-tbcKBCtAuuC4'),
   shippingSheetName: String(process.env.SHIPPING_SHEET_NAME || 'Отгрузки'),
   users: parseUsers(process.env.APP_USERS_JSON),
