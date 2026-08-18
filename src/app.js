@@ -125,7 +125,7 @@ class Application {
     const row = (await this.#rowsForDriver(user)).find(item => item.id === sheetId);
     if (!row) return sendJson(res, 404, { error: 'ORDER_NOT_FOUND' });
     let bitrix = { fields: [] };
-    if (row.orderNumber && this.bitrix.configured) {
+    if (row.orderNumber && this.bitrix.configured && !/сдэк/i.test(row.delivery)) {
       const [result, fieldResult] = await Promise.all([this.bitrix.findItemByOrderNumber(row.orderNumber), this.bitrix.getItemFields()]);
       const item = result.item || result;
       bitrix = { title: String(item.title || ''), fields: driverBitrixFields(item, fieldResult.fields || fieldResult) };
