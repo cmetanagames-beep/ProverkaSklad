@@ -109,3 +109,19 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   assert.match(driverHtml, /data-filter="tomorrow">Завтра</);
   assert.match(driverHtml, /src="\/assets\/logo\.svg" alt="AKFIX"/);
 });
+
+test('unauthenticated app stays hidden and role controls remain usable on mobile', async () => {
+  const indexHtml = await fs.readFile(path.join(ROOT, 'public', 'index.html'), 'utf8');
+  const appJs = await fs.readFile(path.join(ROOT, 'public', 'assets', 'app.js'), 'utf8');
+  const driverCss = await fs.readFile(path.join(ROOT, 'public', 'driver', 'driver.css'), 'utf8');
+  const logistHtml = await fs.readFile(path.join(ROOT, 'public', 'logist', 'index.html'), 'utf8');
+
+  assert.match(indexHtml, /<main class="shell" id="appShell" hidden>/);
+  assert.match(indexHtml, /<nav class="bottom-nav" id="bottomNav" hidden>/);
+  assert.match(appJs, /q\('#appShell'\)\.hidden=false;q\('#bottomNav'\)\.hidden=false/);
+  assert.match(appJs, /refreshPending\(\)\{if\(!app\.user\.login\)return/);
+  assert.match(appJs, /refreshLocks\(\)\{if\(!app\.user\.login\)return/);
+  assert.match(driverCss, /\.tabs button\{flex:1 1 0;min-width:0/);
+  assert.match(logistHtml, /class="logout-button" aria-label="Выйти из приложения">Выйти<\/button>/);
+  assert.doesNotMatch(logistHtml, />↗<\/button>/);
+});
