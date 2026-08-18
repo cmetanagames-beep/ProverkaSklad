@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { sendJson, readJson } = require('./http/response');
+const { driverNamesMatch } = require('./domain/driver-name');
 
 const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.webmanifest':'application/manifest+json','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml'};
 
@@ -57,6 +58,7 @@ class Application {
       if (url.pathname === '/api/admin/users' && req.method === 'GET') return await this.#adminUsers(req, res);
       if (url.pathname === '/api/admin/users/create' && req.method === 'POST') return await this.#adminCreateUser(req, res);
       if (url.pathname === '/api/admin/users/update' && req.method === 'POST') return await this.#adminUpdateUser(req, res);
+      if (url.pathname === '/api/admin/shipping/drivers' && req.method === 'GET') return await this.#adminShippingDrivers(req, res);
       if (url.pathname === '/api/admin/telegram/chats' && req.method === 'GET') return await this.#adminTelegramChats(req, res);
       if (url.pathname === '/api/admin/telegram/select' && req.method === 'POST') return await this.#adminTelegramSelect(req, res);
       if (url.pathname === '/api/admin/telegram/expeditor/select' && req.method === 'POST') return await this.#adminTelegramExpeditorSelect(req, res);
@@ -94,15 +96,15 @@ class Application {
   async #receivingSave(req, res) { const user = this.#receiver(req, res); if (!user) return; sendJson(res, 200, { item: await this.receiving.save(user.login, await readJson(req, 5 * 1024 * 1024)) }); }
   async #receivingClear(req, res) { const user = this.#receiver(req, res); if (!user) return; await this.receiving.clear(user.login); sendJson(res, 200, { ok: true }); }
 
-  async #rowsForDriver(name) {
-    const normalized = String(name || '').trim().toLocaleLowerCase('ru');
-    return (await this.shippingSheet.listToday()).filter(row => this.driverDeliveries.assignedDriver(row.id, row.driver).toLocaleLowerCase('ru') === normalized)
+  async #rowsForDriver(user) {
+    const tableName = user.sheetDriverName || user.name;
+    return (await this.shippingSheet.listToday()).filter(row => driverNamesMatch(tableName, this.driverDeliveries.assignedDriver(row.id, row.driver)))
       .map(row => ({ ...row, driver: this.driverDeliveries.assignedDriver(row.id, row.driver) }));
   }
 
   async #driverOrders(req, res) {
     const user = this.#driver(req, res); if (!user) return;
-    const rows = await this.#rowsForDriver(user.name);
+    const rows = await this.#rowsForDriver(user);
     const completed = new Map(this.driverDeliveries.list(user.login).map(item => [item.orderId, item]));
     sendJson(res, 200, { items: rows.map(row => ({ ...row, completed: completed.get(row.id) || null })) }, { 'Cache-Control': 'no-store' });
   }
@@ -119,7 +121,7 @@ class Application {
   async #driverOrder(req, res, url) {
     const user = this.#driver(req, res); if (!user) return;
     const sheetId = String(url.searchParams.get('id') || '');
-    const row = (await this.#rowsForDriver(user.name)).find(item => item.id === sheetId);
+    const row = (await this.#rowsForDriver(user)).find(item => item.id === sheetId);
     if (!row) return sendJson(res, 404, { error: 'ORDER_NOT_FOUND' });
     let bitrix = null;
     if (row.bitrixId && this.bitrix.configured) bitrix = await this.bitrix.getItem(row.bitrixId);
@@ -130,7 +132,7 @@ class Application {
     const user = this.#driver(req, res); if (!user) return;
     const payload = await this.multipart.read(req);
     const orderId = String(payload.fields.orderId || '');
-    const row = (await this.#rowsForDriver(user.name)).find(item => item.id === orderId);
+    const row = (await this.#rowsForDriver(user)).find(item => item.id === orderId);
     if (!row) return sendJson(res, 404, { error: 'ORDER_NOT_FOUND' });
     const needsPhoto = /^тк(?:\s|$)/i.test(row.delivery);
     const file = payload.files.find(item => item.name === 'expeditorPhoto') || payload.files[0];
@@ -311,6 +313,12 @@ class Application {
     if (!this.#admin(req, res)) return;
     const body = await readJson(req);
     sendJson(res, 200, { user: await this.userStore.updateEmployee(body.id, body) });
+  }
+
+  async #adminShippingDrivers(req, res) {
+    if (!this.#admin(req, res)) return;
+    const items = [...new Set((await this.shippingSheet.listToday()).map(row => row.driver).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
+    sendJson(res, 200, { items }, { 'Cache-Control': 'no-store' });
   }
 
   async #adminTelegramChats(req, res) {
