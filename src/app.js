@@ -124,6 +124,17 @@ class Application {
     const file = payload.files.find(item => item.name === 'expeditorPhoto') || payload.files[0];
     if (needsPhoto && !file) return sendJson(res, 400, { error: 'EXPEDITOR_PHOTO_REQUIRED' });
     if (row.bitrixId && this.bitrix.configured) await this.bitrix.completeDriverDelivery({ orderId: row.bitrixId, driverName: user.name, delivery: row.delivery, file });
+    if (file && this.checks.telegram.configured) {
+      const caption = [
+        'ЭКСПЕДИТОРСКАЯ РАСПИСКА',
+        `Заказ: ${row.orderNumber || '—'}`,
+        `Клиент: ${row.client || '—'}`,
+        `Водитель: ${user.name}`,
+        `Доставка: ${row.delivery || '—'}`,
+        `Дата: ${row.date || new Date().toLocaleDateString('ru-RU')}`,
+      ].join('\n');
+      await this.checks.telegram.sendCheck(caption, [file]);
+    }
     const photo = await this.driverDeliveries.savePhoto(file);
     const completed = await this.driverDeliveries.complete({ login: user.login, driverName: user.name, orderId: row.id, bitrixId: row.bitrixId, order: row, completedAt: new Date().toISOString(), hasPhoto: Boolean(file), photo });
     sendJson(res, 200, { ok: true, completed });
