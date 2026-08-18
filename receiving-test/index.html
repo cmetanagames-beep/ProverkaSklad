@@ -1,1 +1,34 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#cf0a2c"><title>AKFIX — Приёмка</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="scanner.css"></head><body><main id="app"></main><div id="scanner" class="scanner" hidden><div class="scanner-panel"><div class="scanner-head"><b>Сканирование ячейки</b><button id="closeScanner" aria-label="Закрыть">Закрыть</button></div><div class="camera-frame"><video id="scannerVideo" playsinline muted></video><span></span></div><p id="scannerHint">Наведите камеру на QR-код или штрихкод ячейки</p></div></div><div id="toast"></div><script src="exceljs.min.js"></script><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#cf0a2c">
+  <title>AKFIX — Приёмка</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="scanner.css">
+</head>
+<body>
+  <main id="app"></main>
+  <nav class="receiving-nav" aria-label="Разделы приложения">
+    <a href="/">Заказы</a>
+    <a class="active" href="/receiving/" aria-current="page">Приёмка</a>
+    <a href="/?screen=history">История</a>
+  </nav>
+  <dialog id="replaceExcel" class="replace-dialog">
+    <h2>Загрузить другой Excel?</h2>
+    <p>Текущая приёмка будет заменена только после успешного чтения нового файла.</p>
+    <div><button id="cancelReplace" class="btn outline">Отмена</button><button id="confirmReplace" class="btn primary">Загрузить новый</button></div>
+  </dialog>
+  <div id="scanner" class="scanner" hidden>
+    <div class="scanner-panel">
+      <div class="scanner-head"><b>Сканирование ячейки</b><button id="closeScanner" aria-label="Закрыть">Закрыть</button></div>
+      <div class="camera-frame"><video id="scannerVideo" playsinline muted></video><span></span></div>
+      <p id="scannerHint">Наведите камеру на QR-код или штрихкод ячейки</p>
+    </div>
+  </div>
+  <div id="toast"></div>
+  <script src="exceljs.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
