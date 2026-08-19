@@ -423,11 +423,18 @@ addEventListener('offline', () => {
   setSyncText(`Офлайн · сохранено заказов: ${state.orders.length}`, true);
 });
 
-if ('serviceWorker' in navigator)
+if ('serviceWorker' in navigator) {
+  setTimeout(() => sessionStorage.removeItem('akfix-driver-sw-reload'), 5000);
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (sessionStorage.getItem('akfix-driver-sw-reload') === '1') return;
+    sessionStorage.setItem('akfix-driver-sw-reload', '1');
+    location.reload();
+  });
   navigator.serviceWorker
     .register('/sw.js', { updateViaCache: 'none' })
     .then((registration) => registration.update())
     .catch(() => {});
+}
 fetch('/api/session', { cache: 'no-store' })
   .then(async (response) => {
     if (response.ok) start((await response.json()).user);
