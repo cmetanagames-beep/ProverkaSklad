@@ -1,3 +1,10 @@
+const toBitrixConfigFieldName = (code) => {
+  const match = /^ufCrm(\d+)(.*)$/i.exec(String(code || ''));
+  if (!match) return code;
+  const suffix = match[2].replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLocaleUpperCase('en');
+  return `UF_CRM_${match[1]}${suffix.startsWith('_') ? suffix : `_${suffix}`}`;
+};
+
 class BitrixClient {
   constructor(webhookBase) {
     this.webhookBase = webhookBase;
@@ -148,8 +155,10 @@ class BitrixClient {
     });
     const fields = Array.isArray(listResult) ? listResult : listResult.fields || [];
     const ensureField = async ({ title, postfix, userTypeId, multiple }) => {
+      const fieldName = `UF_CRM_${type.id}_${postfix}`;
       let field = fields.find(
         (item) =>
+          String(item.fieldName || item.FIELD_NAME || '').toLocaleUpperCase('ru') === fieldName ||
           String(item.editFormLabel?.ru || item.listColumnLabel?.ru || '')
             .trim()
             .toLocaleLowerCase('ru') === title.toLocaleLowerCase('ru')
@@ -160,7 +169,7 @@ class BitrixClient {
         moduleId: 'crm',
         field: {
           entityId,
-          fieldName: `UF_CRM_${type.id}_${postfix}`,
+          fieldName,
           userTypeId,
           multiple,
           mandatory: 'N',
@@ -209,7 +218,7 @@ class BitrixClient {
           String(field.editFormLabel?.ru || field.listColumnLabel?.ru || '')
             .trim()
             .toLocaleLowerCase('ru') === title.toLocaleLowerCase('ru')
-      )?.fieldName || fallback;
+      )?.fieldName || toBitrixConfigFieldName(fallback);
     const photoConfigName = configNameByTitle('Фото экспедиторской расписки', photoCode);
     const companyConfigName = configNameByTitle('Название транспортной компании', companyCode);
     const trackConfigName = configNameByTitle('Трек номер', trackCode);
