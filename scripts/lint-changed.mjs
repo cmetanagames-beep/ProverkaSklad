@@ -4,6 +4,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 const fix = process.argv.includes('--fix');
 const legacyFiles = new Set([
   'src/app.js',
+  'src/uploads/driver-delivery-store.js',
   'public/assets/app.js',
   'public/sw.js',
   'receiving-test/app.js',

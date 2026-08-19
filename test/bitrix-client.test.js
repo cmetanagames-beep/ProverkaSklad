@@ -87,6 +87,27 @@ test('driver completion saves the receipt without a timeline comment and moves t
   });
 });
 
+test('driver delivery reset clears the receipt and returns the deal to Передан на сборку', async () => {
+  const client = new BitrixClient('https://example.test');
+  const calls = [];
+  client.call = async (method, payload) => {
+    calls.push({ method, payload });
+    if (method === 'crm.status.list') return [{ NAME: 'Передан на сборку', STATUS_ID: 'DT1052_31:PREPARATION' }];
+    return {};
+  };
+
+  await client.resetDriverDelivery('1231313');
+
+  assert.deepEqual(calls[1], {
+    method: 'crm.item.update',
+    payload: {
+      entityTypeId: 1052,
+      id: 1231313,
+      fields: { stageId: 'DT1052_31:PREPARATION', ufCrm19ExpeditorReceipt: [] },
+    },
+  });
+});
+
 test('creates delivery fields and places them after the requested anchors', async () => {
   const client = new BitrixClient('https://example.test');
   const calls = [];

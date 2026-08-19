@@ -271,6 +271,17 @@ class BitrixClient {
     });
   }
 
+  async resetDriverDelivery(orderId) {
+    const stages = await this.call('crm.status.list', { filter: { ENTITY_ID: 'DYNAMIC_1052_STAGE_31' } });
+    const target = stages.find((stage) => /^передан\s+на\s+сборку$/i.test(String(stage.NAME || '').trim()));
+    if (!target) throw new Error('BITRIX_STAGE_NOT_FOUND: Передан на сборку');
+    return this.call('crm.item.update', {
+      entityTypeId: 1052,
+      id: Number(orderId),
+      fields: { stageId: target.STATUS_ID, ufCrm19ExpeditorReceipt: [] },
+    });
+  }
+
   async deleteComment({ orderId, commentId }) {
     return this.call('crm.timeline.comment.delete', {
       id: Number(commentId),
