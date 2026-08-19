@@ -76,8 +76,15 @@ test('creates delivery fields and places them after the requested anchors', asyn
   client.call = async (method, payload) => {
     calls.push({ method, payload });
     if (method === 'crm.type.getByEntityTypeId') return { type: { id: 19, entityTypeId: 1052 } };
-    if (method === 'userfieldconfig.list') return { fields: [] };
-    if (method === 'userfieldconfig.add') return { field: { id: payload.field.userTypeId === 'file' ? 7001 : 7002 } };
+    if (method === 'userfieldconfig.list')
+      return {
+        fields: [
+          { fieldName: 'UF_CRM_19_1751628673880', editFormLabel: { ru: 'Трек номер' } },
+          { fieldName: 'UF_CRM_19_1751013757786', editFormLabel: { ru: 'Условия доставки' } },
+        ],
+      };
+    if (method === 'userfieldconfig.add')
+      return { field: { ...payload.field, id: payload.field.userTypeId === 'file' ? 7001 : 7002 } };
     if (method === 'crm.item.fields')
       return {
         fields: {
@@ -89,8 +96,18 @@ test('creates delivery fields and places them after the requested anchors', asyn
       };
     if (method === 'crm.item.details.configuration.get')
       return [
-        { name: 'warehouse', title: 'Склад', type: 'section', elements: [{ name: 'ufTrack' }] },
-        { name: 'delivery', title: 'Доставка', type: 'section', elements: [{ name: 'ufTerms' }] },
+        {
+          name: 'warehouse',
+          title: 'Склад',
+          type: 'section',
+          elements: [{ name: 'UF_CRM_19_1751628673880' }],
+        },
+        {
+          name: 'delivery',
+          title: 'Доставка',
+          type: 'section',
+          elements: [{ name: 'UF_CRM_19_1751013757786' }],
+        },
       ];
     if (method === 'crm.item.details.configuration.set') return true;
     throw new Error(`Unexpected method: ${method}`);
@@ -111,10 +128,10 @@ test('creates delivery fields and places them after the requested anchors', asyn
   const layoutCall = calls.find((call) => call.method === 'crm.item.details.configuration.set');
   assert.deepEqual(
     layoutCall.payload.data[0].elements.map((element) => element.name),
-    ['ufTrack', 'ufCrm19ExpeditorReceipt']
+    ['UF_CRM_19_1751628673880', 'UF_CRM_19_EXPEDITOR_RECEIPT']
   );
   assert.deepEqual(
     layoutCall.payload.data[1].elements.map((element) => element.name),
-    ['ufTerms', 'ufCrm19DeliveryCompanyName']
+    ['UF_CRM_19_1751013757786', 'UF_CRM_19_DELIVERY_COMPANY_NAME']
   );
 });

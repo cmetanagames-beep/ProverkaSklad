@@ -203,6 +203,17 @@ class BitrixClient {
     const trackCode = codeByTitle('Трек номер');
     const termsCode = codeByTitle('Условия доставки');
     if (!photoCode || !companyCode || !trackCode || !termsCode) throw new Error('BITRIX_DELIVERY_FIELD_CODE_NOT_FOUND');
+    const configNameByTitle = (title, fallback) =>
+      fields.find(
+        (field) =>
+          String(field.editFormLabel?.ru || field.listColumnLabel?.ru || '')
+            .trim()
+            .toLocaleLowerCase('ru') === title.toLocaleLowerCase('ru')
+      )?.fieldName || fallback;
+    const photoConfigName = configNameByTitle('Фото экспедиторской расписки', photoCode);
+    const companyConfigName = configNameByTitle('Название транспортной компании', companyCode);
+    const trackConfigName = configNameByTitle('Трек номер', trackCode);
+    const termsConfigName = configNameByTitle('Условия доставки', termsCode);
 
     const extras = { categoryId: 31 };
     const configuration = await this.call('crm.item.details.configuration.get', {
@@ -211,7 +222,7 @@ class BitrixClient {
       extras,
     });
     if (!Array.isArray(configuration)) throw new Error('BITRIX_COMMON_CARD_CONFIGURATION_NOT_FOUND');
-    const targetCodes = new Set([photoCode, companyCode]);
+    const targetCodes = new Set([photoCode, companyCode, photoConfigName, companyConfigName]);
     const data = configuration.map((section) => ({
       ...section,
       elements: (section.elements || []).filter((element) => !targetCodes.has(element.name)),
@@ -225,7 +236,7 @@ class BitrixClient {
       }
       return false;
     };
-    if (!insertAfter(trackCode, photoCode) || !insertAfter(termsCode, companyCode))
+    if (!insertAfter(trackConfigName, photoConfigName) || !insertAfter(termsConfigName, companyConfigName))
       throw new Error('BITRIX_CARD_ANCHOR_NOT_FOUND');
     await this.call('crm.item.details.configuration.set', {
       entityTypeId: 1052,
