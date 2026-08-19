@@ -21,6 +21,8 @@ class Application {
     this.telegramExpeditor = telegramExpeditor;
     this.receiving = receiving;
     this.orderLocks = new Map();
+    this.driverBitrixLocks = new Map();
+    this.driverTelegramLocks = new Map();
     this.version = process.env.APP_VERSION || `${Date.now()}`;
   }
 
@@ -103,8 +105,30 @@ class Application {
   async #rowsForDriver(user, date) {
     const tableName = user.sheetDriverName || user.name;
     const rows = date ? await this.shippingSheet.listByDate(date) : await this.shippingSheet.listToday();
-    return rows.filter(row => driverNamesMatch(tableName, this.driverDeliveries.assignedDriver(row.id, row.driver)))
+    const assigned = rows.filter(row => driverNamesMatch(tableName, this.driverDeliveries.assignedDriver(row.id, row.driver)))
       .map(row => ({ ...row, driver: this.driverDeliveries.assignedDriver(row.id, row.driver) }));
+    if (!this.bitrix.configured) return assigned;
+    let definitions = {};
+    try {
+      const fieldResult = await this.bitrix.getItemFields();
+      definitions = fieldResult.fields || fieldResult;
+    } catch {
+      return assigned;
+    }
+    const enriched = await Promise.all(assigned.map(async row => {
+      if (!row.orderNumber) return row;
+      try {
+        const result = await this.bitrix.findItemByOrderNumber(row.orderNumber);
+        const item = result.item || result;
+        const fields = driverBitrixFields(item, definitions);
+        const deliveryAddress = fields.find(field => /адрес\s+доставки/i.test(field.label))?.value || '';
+        const recipientContact = fields.find(field => /контакт.*получател/i.test(field.label))?.value || '';
+        return { ...row, client: row.client || clientNameFromBitrixTitle(item.title), deliveryAddress, recipientContact };
+      } catch {
+        return row;
+      }
+    }));
+    return groupDriverRows(enriched);
   }
 
   async #driverOrders(req, res, url) {
@@ -132,11 +156,17 @@ class Application {
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return sendJson(res, 400, { error: 'INVALID_DATE' });
     const row = (await this.#rowsForDriver(user, date || undefined)).find(item => item.id === sheetId);
     if (!row) return sendJson(res, 404, { error: 'ORDER_NOT_FOUND' });
-    let bitrix = { fields: [] };
-    if (row.orderNumber && this.bitrix.configured && !/сдэк/i.test(row.delivery)) {
-      const [result, fieldResult] = await Promise.all([this.bitrix.findItemByOrderNumber(row.orderNumber), this.bitrix.getItemFields()]);
-      const item = result.item || result;
-      bitrix = { title: String(item.title || ''), fields: driverBitrixFields(item, fieldResult.fields || fieldResult) };
+    let bitrix = { fields: [], items: [] };
+    const members = row.orders || [row];
+    if (members.some(item => item.orderNumber) && this.bitrix.configured && !/сдэк/i.test(row.delivery)) {
+      const fieldResult = await this.bitrix.getItemFields();
+      const definitions = fieldResult.fields || fieldResult;
+      const items = await Promise.all(members.filter(item => item.orderNumber).map(async member => {
+        const result = await this.bitrix.findItemByOrderNumber(member.orderNumber);
+        const item = result.item || result;
+        return { orderNumber: member.orderNumber, title: String(item.title || ''), fields: driverBitrixFields(item, definitions) };
+      }));
+      bitrix = { title: items[0]?.title || '', fields: items[0]?.fields || [], items };
     }
     sendJson(res, 200, { order: row, bitrix, completed: this.driverDeliveries.get(user.login, row.id) }, { 'Cache-Control': 'no-store' });
   }
@@ -145,38 +175,112 @@ class Application {
     const user = this.#driver(req, res); if (!user) return;
     const payload = await this.multipart.read(req);
     const orderId = String(payload.fields.orderId || '');
+    const orderNumber = String(payload.fields.orderNumber || '').trim();
     const date = String(payload.fields.date || '');
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return sendJson(res, 400, { error: 'INVALID_DATE' });
-    const row = (await this.#rowsForDriver(user, date || undefined)).find(item => item.id === orderId);
+    const row = (await this.#rowsForDriver(user, date || undefined)).find(item => driverRowMatches(item, orderId, orderNumber));
     if (!row) return sendJson(res, 404, { error: 'ORDER_NOT_FOUND' });
     const needsPhoto = /^тк(?:\s|$)/i.test(row.delivery);
     const file = payload.files.find(item => item.name === 'expeditorPhoto') || payload.files[0];
     if (needsPhoto && !file) return sendJson(res, 400, { error: 'EXPEDITOR_PHOTO_REQUIRED' });
     const existing = this.driverDeliveries.get(user.login, row.id);
     if (existing?.telegramSentAt) return sendJson(res, 200, { ok: true, completed: existing });
-    let bitrixItemId = '';
-    if (existing) {
-      bitrixItemId = String(existing.bitrixId || '');
-    } else if (row.orderNumber && this.bitrix.configured) {
-      const result = await this.bitrix.findItemByOrderNumber(row.orderNumber);
-      bitrixItemId = String((result.item || result).id || '');
-      await this.bitrix.completeDriverDelivery({ orderId: bitrixItemId, file });
-    }
     const photo = existing?.photo || await this.driverDeliveries.savePhoto(file);
-    let completed = existing || await this.driverDeliveries.complete({ login: user.login, driverName: user.name, orderId: row.id, bitrixId: bitrixItemId, order: row, completedAt: new Date().toISOString(), hasPhoto: Boolean(file), photo });
-    if (file && this.telegramExpeditor.configured) {
-      const caption = [
-        'ЭКСПЕДИТОРСКАЯ РАСПИСКА',
-        `Заказ: ${row.orderNumber || '—'}`,
-        `Клиент: ${row.client || '—'}`,
-        `Водитель: ${user.name}`,
-        `Доставка: ${row.delivery || '—'}`,
-        `Дата: ${row.date || new Date().toLocaleDateString('ru-RU')}`,
-      ].join('\n');
-      await this.telegramExpeditor.sendCheck(caption, [file]);
-      completed = await this.driverDeliveries.complete({ ...completed, telegramSentAt: new Date().toISOString() });
+    let completed = existing || await this.driverDeliveries.complete({ login: user.login, driverName: user.name, orderId: row.id, bitrixId: '', bitrixItems: [], order: row, completedAt: new Date().toISOString(), bitrixPending: true, hasPhoto: Boolean(file), photo, telegramPending: false });
+    if (completed.bitrixPending) completed = await this.#completeDriverBitrix(completed, file, true);
+    if (!completed.bitrixPending && file && !completed.telegramSentAt) {
+      if (!completed.telegramPending) completed = await this.driverDeliveries.complete({ ...completed, telegramPending: true });
+      completed = await this.#sendDriverTelegram(completed, file, true);
     }
     sendJson(res, 200, { ok: true, completed });
+  }
+
+  async retryPendingDriverDeliveries() {
+    const now = Date.now();
+    const pending = this.driverDeliveries.listAll().filter(item =>
+      (item.bitrixPending && (!item.bitrixNextRetryAt || Date.parse(item.bitrixNextRetryAt) <= now)) ||
+      (item.telegramPending && !item.telegramSentAt && (!item.telegramNextRetryAt || Date.parse(item.telegramNextRetryAt) <= now))
+    );
+    for (const item of pending) {
+      let current = item;
+      if (current.bitrixPending) current = await this.#completeDriverBitrix(current, null, false);
+      if (!current.bitrixPending && current.telegramPending && !current.telegramSentAt)
+        await this.#sendDriverTelegram(current, null, false);
+    }
+    return pending.length;
+  }
+
+  async #completeDriverBitrix(item, suppliedFile, force) {
+    const key = `${item.login}:${item.orderId}`;
+    if (this.driverBitrixLocks.has(key)) return this.driverBitrixLocks.get(key);
+    const task = (async () => {
+      let current = this.driverDeliveries.get(item.login, item.orderId) || item;
+      if (!current.bitrixPending) return current;
+      if (!force && current.bitrixNextRetryAt && Date.parse(current.bitrixNextRetryAt) > Date.now()) return current;
+      try {
+        if (!this.bitrix.configured) throw new Error('BITRIX_NOT_CONFIGURED');
+        let file = suppliedFile;
+        if (!file && current.photo?.id) {
+          const buffer = await this.driverDeliveries.photo(current.photo.id);
+          if (buffer) file = { buffer, mime: current.photo.mime || 'image/jpeg', filename: current.photo.filename || 'expeditor.jpg' };
+        }
+        const members = current.order?.orders || [current.order];
+        const done = Array.isArray(current.bitrixItems) ? current.bitrixItems : [];
+        for (const member of members.filter(value => value?.orderNumber)) {
+          if (done.some(value => value.orderNumber === member.orderNumber && value.completedAt)) continue;
+          const result = await this.bitrix.findItemByOrderNumber(member.orderNumber);
+          const bitrixId = String((result.item || result).id || '');
+          await this.bitrix.completeDriverDelivery({ orderId: bitrixId, file });
+          done.push({ orderNumber: member.orderNumber, bitrixId, completedAt: new Date().toISOString() });
+          current = await this.driverDeliveries.complete({ ...current, bitrixId: current.bitrixId || bitrixId, bitrixItems: done });
+        }
+        current = await this.driverDeliveries.complete({ ...current, bitrixPending: false, bitrixCompletedAt: new Date().toISOString(), bitrixLastError: '', bitrixNextRetryAt: null, telegramPending: Boolean(current.photo) });
+      } catch (error) {
+        const attempts = Number(current.bitrixAttempts || 0) + 1;
+        const delay = Math.min(15 * 60 * 1000, 30 * 1000 * (2 ** Math.min(attempts - 1, 5)));
+        current = await this.driverDeliveries.complete({ ...current, bitrixPending: true, bitrixAttempts: attempts, bitrixLastError: String(error.message || 'BITRIX_UPLOAD_FAILED').slice(0, 300), bitrixNextRetryAt: new Date(Date.now() + delay).toISOString() });
+      }
+      return current;
+    })().finally(() => this.driverBitrixLocks.delete(key));
+    this.driverBitrixLocks.set(key, task);
+    return task;
+  }
+
+  async #sendDriverTelegram(item, suppliedFile, force) {
+    const key = `${item.login}:${item.orderId}`;
+    if (this.driverTelegramLocks.has(key)) return this.driverTelegramLocks.get(key);
+    const task = (async () => {
+      let current = this.driverDeliveries.get(item.login, item.orderId) || item;
+      if (current.bitrixPending || current.telegramSentAt || !current.telegramPending) return current;
+      if (!force && current.telegramNextRetryAt && Date.parse(current.telegramNextRetryAt) > Date.now()) return current;
+      try {
+        if (!this.telegramExpeditor.configured) throw new Error('TELEGRAM_NOT_CONFIGURED');
+        let file = suppliedFile;
+        if (!file && current.photo?.id) {
+          const buffer = await this.driverDeliveries.photo(current.photo.id);
+          if (buffer) file = { buffer, mime: current.photo.mime || 'image/jpeg', filename: current.photo.filename || 'expeditor.jpg' };
+        }
+        if (!file) throw new Error('EXPEDITOR_PHOTO_NOT_FOUND');
+        const order = current.order || {};
+        const caption = [
+          'ЭКСПЕДИТОРСКАЯ РАСПИСКА',
+          `Заказ: ${order.orderNumber || '—'}`,
+          `Клиент: ${order.client || '—'}`,
+          `Водитель: ${current.driverName || '—'}`,
+          `Доставка: ${order.delivery || '—'}`,
+          `Дата: ${order.date || new Date().toLocaleDateString('ru-RU')}`,
+        ].join('\n');
+        await this.telegramExpeditor.sendCheck(caption, [file]);
+        current = await this.driverDeliveries.complete({ ...current, telegramPending: false, telegramSentAt: new Date().toISOString(), telegramLastError: '', telegramNextRetryAt: null });
+      } catch (error) {
+        const attempts = Number(current.telegramAttempts || 0) + 1;
+        const delay = Math.min(15 * 60 * 1000, 30 * 1000 * (2 ** Math.min(attempts - 1, 5)));
+        current = await this.driverDeliveries.complete({ ...current, telegramPending: true, telegramAttempts: attempts, telegramLastError: String(error.message || 'TELEGRAM_UPLOAD_FAILED').slice(0, 300), telegramNextRetryAt: new Date(Date.now() + delay).toISOString() });
+      }
+      return current;
+    })().finally(() => this.driverTelegramLocks.delete(key));
+    this.driverTelegramLocks.set(key, task);
+    return task;
   }
 
   async #driverPhoto(req, res, id, url) {
@@ -458,4 +562,51 @@ function deliveryDate(item) {
   return String(item.completedAt || '').slice(0, 10);
 }
 
-module.exports = { Application };
+function groupDriverRows(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    const canGroup = Boolean(
+      String(row.client || '').trim() &&
+        String(row.orderNumber || '').trim() &&
+        String(row.deliveryAddress || '').trim() &&
+        String(row.recipientContact || '').trim()
+    );
+    const key = canGroup
+      ? [row.date, row.client, row.warehouse, row.delivery, row.driver, row.deliveryAddress, row.recipientContact]
+          .map(value => String(value || '').trim().toLocaleLowerCase('ru'))
+          .join('|')
+      : `single:${row.id}`;
+    const group = groups.get(key) || [];
+    group.push(row);
+    groups.set(key, group);
+  }
+  return [...groups.entries()].map(([key, orders]) => {
+    if (orders.length === 1) return orders[0];
+    const first = orders[0];
+    const orderNumbers = orders.map(item => item.orderNumber).filter(Boolean);
+    return {
+      ...first,
+      id: `group:${encodeURIComponent(key)}`,
+      isGroup: true,
+      orders,
+      orderNumbers,
+      orderNumber: orderNumbers.join(', '),
+    };
+  });
+}
+
+function driverRowMatches(row, orderId, orderNumber) {
+  if (row.id === orderId) return true;
+  if (!orderNumber) return false;
+  if (row.orderNumber === orderNumber) return true;
+  return Array.isArray(row.orders) && row.orders.some(item => String(item.orderNumber || '') === orderNumber);
+}
+
+function clientNameFromBitrixTitle(title) {
+  return String(title || '')
+    .replace(/^\s*\([^)]+\)\s*/, '')
+    .replace(/^АФУТ-\d+\s*/i, '')
+    .trim();
+}
+
+module.exports = { Application, driverRowMatches, groupDriverRows };

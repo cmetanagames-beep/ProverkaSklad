@@ -218,7 +218,7 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   const serverAppJs = await fs.readFile(path.join(ROOT, 'src', 'app.js'), 'utf8');
   assert.match(driverHtml, /data-filter="tomorrow">Завтра</);
   assert.match(driverHtml, /src="\/assets\/logo\.svg" alt="AKFIX"/);
-  assert.match(driverHtml, /driver\.js\?v=15/);
+  assert.match(driverHtml, /driver\.js\?v=16/);
   assert.match(driverJs, /async function complete[\s\S]*await markQueued\(order, photo\)/);
   assert.match(driverJs, /Принято\. Отправляем в фоне — можно продолжать работу\./);
   assert.match(driverJs, /if \(navigator\.onLine\) \{\s*syncQueue\(\);\s*return;/);
@@ -226,6 +226,8 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   assert.match(serverAppJs, /telegramSentAt: new Date\(\)\.toISOString\(\)/);
   assert.match(driverJs, /registration\.sync\?\.register/);
   assert.match(driverJs, /serviceWorker\.addEventListener\('controllerchange'/);
+  assert.match(driverJs, /offlineOrderKey\(item\.order\) === offlineOrderKey\(order\)/);
+  assert.match(driverJs, /clientFromBitrixTitle\(detail\.bitrix\?\.title\)/);
   assert.match(driverJs, /Скачать фотографию/);
   const sw = await fs.readFile(path.join(ROOT, 'public', 'sw.js'), 'utf8');
   assert.match(sw, /form\.set\('date', match \?/);
