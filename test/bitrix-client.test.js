@@ -36,8 +36,6 @@ test('driver completion adds the receipt and moves the deal to Груз отпр
   const calls = [];
   client.call = async (method, payload) => {
     calls.push({ method, payload });
-    if (method === 'crm.item.fields')
-      return { fields: { ufCrm19ExpeditorReceipt: { title: 'Фото экспедиторской расписки' } } };
     return {};
   };
 
@@ -51,10 +49,6 @@ test('driver completion adds the receipt and moves the deal to Груз отпр
   assert.equal(calls[0].method, 'crm.timeline.comment.add');
   assert.deepEqual(calls[0].payload.fields.FILES, [['receipt.jpg', Buffer.from('photo').toString('base64')]]);
   assert.deepEqual(calls[1], {
-    method: 'crm.item.fields',
-    payload: { entityTypeId: 1052 },
-  });
-  assert.deepEqual(calls[2], {
     method: 'crm.item.update',
     payload: {
       entityTypeId: 1052,
@@ -64,7 +58,7 @@ test('driver completion adds the receipt and moves the deal to Груз отпр
       },
     },
   });
-  assert.deepEqual(calls[3], {
+  assert.deepEqual(calls[2], {
     method: 'crm.item.update',
     payload: { entityTypeId: 1052, id: 8622, fields: { stageId: 'DT1052_31:SUCCESS' } },
   });

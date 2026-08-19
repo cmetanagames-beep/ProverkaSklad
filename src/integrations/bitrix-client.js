@@ -124,18 +124,8 @@ class BitrixClient {
     const fields = { ENTITY_ID: Number(orderId), ENTITY_TYPE: 'dynamic_1052', COMMENT: comment };
     if (file) fields.FILES = [[file.filename, file.buffer.toString('base64')]];
     await this.call('crm.timeline.comment.add', { fields });
-    let photoField = process.env.BITRIX_EXPEDITOR_PHOTO_FIELD;
-    if (file && !photoField) {
-      const definitionsResult = await this.getItemFields();
-      const definitions = definitionsResult.fields || definitionsResult;
-      photoField = Object.entries(definitions).find(
-        ([, definition]) =>
-          String(definition.title || definition.formLabel || '')
-            .trim()
-            .toLocaleLowerCase('ru') === 'фото экспедиторской расписки'
-      )?.[0];
-    }
-    if (file && photoField)
+    const photoField = 'ufCrm19ExpeditorReceipt';
+    if (file)
       await this.call('crm.item.update', {
         entityTypeId: 1052,
         id: Number(orderId),
