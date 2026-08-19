@@ -36,7 +36,7 @@ test('driver completion adds the receipt and moves the deal to Груз отпр
   const calls = [];
   client.call = async (method, payload) => {
     calls.push({ method, payload });
-    if (method === 'crm.status.list') return [{ NAME: 'Груз отправлен', STATUS_ID: 'DT1052_31:SHIPPED' }];
+    if (method === 'crm.status.list') return [{ NAME: 'Груз отправлен 4145', STATUS_ID: 'DT1052_31:SHIPPED' }];
     return {};
   };
 
