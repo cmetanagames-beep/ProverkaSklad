@@ -1,67 +1,62 @@
 // @ts-check
 /** @typedef {'checker'|'receiving'|'driver'|'logist'|'admin'} RoleKey */
-/** @typedef {[string,string,string[]]} RoleContent */
-/** @type {Record<RoleKey, RoleContent>} */
 const roles = {
-  checker: [
-    'Сборщик видит заказы своего склада',
-    'Открывает заказ, проверяет товар и документы, делает обязательные фотографии и завершает проверку.',
-    ['Список текущих заказов', 'Плановая дата отгрузки', 'Фото и история результата'],
-  ],
-  receiving: [
-    'Приёмка начинается с актуального Excel',
-    'Сотрудник загружает новый файл, сверяет план и факт, указывает месяц и год срока годности и ячейку хранения.',
-    ['Повторная загрузка файла', 'Факт и план по позиции', 'Срок годности и размещение'],
-  ],
-  driver: [
-    'Водитель получает только свои рейсы',
-    'На сегодня, завтра и в истории. Внутри — номер заказа и актуальная информация доставки из Bitrix24.',
-    ['Адрес и контакт получателя', 'Условия и название ТК', 'Фото экспедиторской расписки'],
-  ],
-  logist: [
-    'Логист контролирует данные до отправки',
-    'Проверяет заказ, исправляет доступные поля Bitrix24, меняет водителя и видит расписку.',
-    ['Поиск и просмотр заказа', 'Корректировка данных', 'Назначение водителя'],
-  ],
-  admin: [
-    'Администратор управляет доступом и связями',
-    'Создаёт сотрудников, связывает имя водителя с таблицей и выбирает отдельные Telegram-группы.',
-    ['Пользователи и роли', 'Привязка имени водителя', 'Две Telegram-группы'],
-  ],
+  checker: {
+    kicker: 'Сборка и проверка',
+    title: 'Заказы своего склада — в одном списке',
+    text: 'Сборщик открывает заказ, видит плановую дату, проходит инструкцию и фиксирует результат фотографиями.',
+    list: ['Актуальный список заказов', 'Пошаговая проверка', 'История результата'],
+    image: './assets/real-checker-orders.png',
+  },
+  receiving: {
+    kicker: 'Приёмка',
+    title: 'Новая поставка начинается с Excel',
+    text: 'Сотрудник загружает актуальный файл, сверяет план и факт, указывает срок годности и размещение.',
+    list: ['XLSX и CSV', 'Повторная загрузка без конфликтов', 'Факт, срок и ячейка хранения'],
+    image: './assets/real-receiving.png',
+  },
+  driver: {
+    kicker: 'Доставка',
+    title: 'Только свои рейсы и нужные данные',
+    text: 'Водитель видит заказы на сегодня и завтра, открывает адрес и контакт, а завершённые рейсы находит в истории.',
+    list: ['Сегодня, завтра и история', 'Данные доставки из Bitrix24', 'Подтверждение отправки'],
+    image: './assets/real-driver-today.png',
+  },
+  logist: {
+    kicker: 'Логистика',
+    title: 'Контроль до и после отправки',
+    text: 'Логист просматривает заказ, проверяет данные, исправляет доступные поля и меняет назначенного водителя.',
+    list: ['Поиск по заказам', 'Контроль данных Bitrix24', 'Управление назначениями'],
+    image: './assets/real-logist.png',
+  },
+  admin: {
+    kicker: 'Управление',
+    title: 'Пользователи, роли и интеграции',
+    text: 'Администратор управляет доступом, привязывает точные имена из таблицы и выбирает Telegram-группы.',
+    list: ['Пользователи и роли', 'Привязка водителей', 'Раздельные Telegram-каналы'],
+    image: './assets/real-admin-users.png',
+  },
 };
-/** @type {Record<RoleKey, string[]>} */
-const screens = {
-  checker: ['Заказы на проверку', 'АФУТ-003428', 'ИНДЭКС ООО', 'Плановая отгрузка · Завтра'],
-  receiving: ['Поставка № 00456', 'CA032', 'Химический анкер, 300 мл', 'Срок годности · 08.2028'],
-  driver: ['Мои рейсы', 'Заказ № 3424', 'Вагнермайер Руссланд', 'ТК Деловые линии · Сегодня'],
-  logist: ['Управление отгрузками', '3424 · Вагнермайер', 'Магомедов Шамиль', 'Водитель назначен'],
-  admin: ['Настройки приложения', 'Пользователи', 'Telegram · 2 канала', 'Bitrix24 · подключён'],
-};
-/** @param {string} selector */
-function element(selector) {
-  const found = document.querySelector(selector);
-  if (!(found instanceof window.HTMLElement)) throw new Error(`Missing element: ${selector}`);
+/** @param {string} s @returns {HTMLElement} */
+const q = (s) => {
+  const found = document.querySelector(s);
+  if (!(found instanceof window.HTMLElement)) throw new Error(`Missing element: ${s}`);
   return found;
-}
+};
 /** @param {RoleKey} key */
 function setRole(key) {
-  const r = roles[key],
-    s = screens[key];
-  element('#roleTitle').textContent = r[0];
-  element('#roleText').textContent = r[1];
-  element('#roleList').innerHTML = r[2].map((x) => '<li>' + x + '</li>').join('');
-  element('#roleDevice').innerHTML =
-    '<div class="mini-app"><header><img src="/assets/logo.svg"><span>' +
-    key +
-    '</span></header><h4>' +
-    s[0] +
-    '</h4><div class="mini-row"><b>' +
-    s[1] +
-    '</b><small>' +
-    s[2] +
-    '</small><em>' +
-    s[3] +
-    '</em></div><div class="mini-row muted"><b>Следующая задача</b><small>Данные загружены</small></div><nav>Заказы　 История　 Профиль</nav></div>';
+  const r = roles[key];
+  if (!r) return;
+  q('#roleKicker').textContent = r.kicker;
+  q('#roleTitle').textContent = r.title;
+  q('#roleText').textContent = r.text;
+  q('#roleList').innerHTML = r.list.map((x) => `<li>${x}</li>`).join('');
+  const image = /** @type {HTMLImageElement} */ (q('#roleImage'));
+  image.classList.add('switching');
+  setTimeout(() => {
+    image.src = r.image;
+    image.classList.remove('switching');
+  }, 180);
   document.querySelectorAll('.role-tabs button').forEach((b) => {
     if (b instanceof window.HTMLButtonElement) b.classList.toggle('active', b.dataset.role === key);
   });
@@ -72,34 +67,12 @@ document.querySelectorAll('.role-tabs button').forEach((b) =>
   })
 );
 setRole('checker');
-/** @type {HTMLElement[]} */
-const steps = [...document.querySelectorAll('#automationSteps button')].filter((b) => b instanceof window.HTMLElement);
-/** @type {ReturnType<typeof setInterval>|undefined} */
-let timer;
-/** @param {number} i */
-function setStep(i) {
-  steps.forEach((b, n) => b.classList.toggle('active', n === i));
-  element('#receiptCard').classList.toggle('active', i === 0);
-  element('#telegramCard').classList.toggle('active', i === 2);
-  element('#bitrixCard').classList.toggle('active', i === 1 || i === 3);
-}
-steps.forEach((b, i) => b.addEventListener('click', () => setStep(i)));
-function play() {
-  if (timer !== undefined) clearInterval(timer);
-  let i = 0;
-  setStep(i);
-  timer = setInterval(() => {
-    if (++i > 3) return clearInterval(timer);
-    setStep(i);
-  }, 1050);
-}
-element('#runAutomation').addEventListener('click', play);
-element('#playDemo').addEventListener('click', () => {
-  element('#automation').scrollIntoView({ behavior: 'smooth' });
-  setTimeout(play, 650);
-});
 const observer = new window.IntersectionObserver(
-  (es) => es.forEach((e) => e.target.classList.toggle('visible', e.isIntersecting)),
-  { threshold: 0.14 }
+  (entries) =>
+    entries.forEach((e) => {
+      if (e.isIntersecting) e.target.classList.add('visible');
+    }),
+  { threshold: 0.1 }
 );
-document.querySelectorAll('.reveal').forEach((e) => observer.observe(e));
+document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+setTimeout(() => document.querySelectorAll('.reveal').forEach((el) => el.classList.add('visible')), 1600);
