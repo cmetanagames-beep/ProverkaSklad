@@ -227,6 +227,7 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   assert.match(driverJs, /registration\.sync\?\.register/);
   assert.match(driverJs, /serviceWorker\.addEventListener\('controllerchange'/);
   assert.match(driverJs, /offlineOrderKey\(item\.order\) === offlineOrderKey\(order\)/);
+  assert.match(driverJs, /clientFromBitrixTitle\(detail\.bitrix\?\.title\)/);
   assert.match(driverJs, /Скачать фотографию/);
   const sw = await fs.readFile(path.join(ROOT, 'public', 'sw.js'), 'utf8');
   assert.match(sw, /form\.set\('date', match \?/);

@@ -30,6 +30,11 @@ const isoFromSheetDate = (value) => {
 };
 const offlineOrderKey = (order) =>
   `${isoFromSheetDate(order.date)}:${String(order.orderNumber || order.id || '').trim()}`;
+const clientFromBitrixTitle = (title) =>
+  String(title || '')
+    .replace(/^\s*\([^)]+\)\s*/, '')
+    .replace(/^АФУТ-\d+\s*/i, '')
+    .trim();
 
 // eslint-disable-next-line no-redeclare
 const DriverOffline = {
@@ -193,9 +198,17 @@ async function cacheOrderDetails(orders, date) {
   await Promise.allSettled(
     orders.map(async (order) => {
       const detail = await api(`/api/driver/order?id=${encodeURIComponent(order.id)}&date=${encodeURIComponent(date)}`);
+      if (!order.client) {
+        const client = clientFromBitrixTitle(detail.bitrix?.title);
+        if (client) {
+          order.client = client;
+          detail.order = { ...detail.order, client };
+        }
+      }
       await DriverOffline.saveDetail(state.user.login, order.id, detail);
     })
   );
+  if (state.orders === orders) renderOrders();
 }
 
 function renderOrders() {
@@ -243,6 +256,7 @@ function renderDetail({ order, bitrix, completed }) {
   const isCdek = /сдэк/i.test(order.delivery);
   const fields = Array.isArray(bitrix?.fields) ? bitrix.fields : [];
   const bitrixNumber = isCdek ? '' : String(bitrix?.title || '').match(/АФУТ-\d+/i)?.[0] || '';
+  const client = order.client || clientFromBitrixTitle(bitrix?.title) || 'Заказ';
   const bitrixPanel = isCdek
     ? ''
     : `<div class="panel"><h2>Доставка из Битрикс24</h2><div class="bitrix">${fields.length ? fields.map((field) => `<div><span>${esc(field.label)}</span>${esc(field.value)}</div>`).join('') : '<p class="note">Поля доставки в сделке не заполнены.</p>'}</div></div>`;
@@ -251,7 +265,7 @@ function renderDetail({ order, bitrix, completed }) {
       ? `<div class="panel receipt"><h2>Фото экспедиторской расписки</h2><a class="receipt-preview" href="/api/driver/photo/${encodeURIComponent(completed.photo.id)}" target="_blank" rel="noopener"><img src="/api/driver/photo/${encodeURIComponent(completed.photo.id)}" alt="Фото экспедиторской расписки"></a><a class="secondary receipt-download" href="/api/driver/photo/${encodeURIComponent(completed.photo.id)}?download=1" download>Скачать фотографию</a></div>`
       : '';
   $('#detail').innerHTML =
-    `<div class="hero"><p class="hero-order">Заказ № ${esc(order.orderNumber || '—')}${bitrixNumber ? ` · Bitrix ${esc(bitrixNumber)}` : ''}</p><h1>${esc(order.client || 'Заказ')}</h1></div><div class="panel facts"><div class="fact"><small>Дата</small><b>${esc(order.date || '—')}</b></div><div class="fact"><small>Склад</small><b>${esc(order.warehouse || '—')}</b></div><div class="fact"><small>Доставка</small><b>${esc(order.delivery || '—')}</b></div><div class="fact"><small>Документы</small><b>${esc(order.documents || '—')}</b></div><div class="fact"><small>Честный знак</small><b>${esc(order.marking || '—')}</b></div><div class="fact"><small>Перебивка</small><b>${esc(order.relabel || '—')}</b></div></div>${bitrixPanel}${completed ? `<div class="panel done-mark">${completed.queued ? (navigator.onLine ? '✓ Принято. Отправляем в фоне — можно продолжать работу.' : '◷ Сохранено на телефоне. Отправится после появления интернета.') : '✓ Рейс завершён ' + new Date(completed.completedAt).toLocaleString('ru-RU')}</div>${receiptPanel}` : `<form id="completeForm" class="panel"><h2>${needsPhoto ? 'Фото экспедиторской обязательно' : 'Завершение рейса'}</h2>${needsPhoto ? '<label id="upload" class="upload"><span>📷 Сфотографировать экспедиторскую</span><input id="photo" type="file" accept="image/*" capture="environment" required></label>' : '<p class="note">Подтвердите, что груз отправлен.</p>'}<button id="complete" class="primary" ${needsPhoto ? 'disabled' : ''}>Груз отправлен</button></form>`}`;
+    `<div class="hero"><p class="hero-order">Заказ № ${esc(order.orderNumber || '—')}${bitrixNumber ? ` · Bitrix ${esc(bitrixNumber)}` : ''}</p><h1>${esc(client)}</h1></div><div class="panel facts"><div class="fact"><small>Дата</small><b>${esc(order.date || '—')}</b></div><div class="fact"><small>Склад</small><b>${esc(order.warehouse || '—')}</b></div><div class="fact"><small>Доставка</small><b>${esc(order.delivery || '—')}</b></div><div class="fact"><small>Документы</small><b>${esc(order.documents || '—')}</b></div><div class="fact"><small>Честный знак</small><b>${esc(order.marking || '—')}</b></div><div class="fact"><small>Перебивка</small><b>${esc(order.relabel || '—')}</b></div></div>${bitrixPanel}${completed ? `<div class="panel done-mark">${completed.queued ? (navigator.onLine ? '✓ Принято. Отправляем в фоне — можно продолжать работу.' : '◷ Сохранено на телефоне. Отправится после появления интернета.') : '✓ Рейс завершён ' + new Date(completed.completedAt).toLocaleString('ru-RU')}</div>${receiptPanel}` : `<form id="completeForm" class="panel"><h2>${needsPhoto ? 'Фото экспедиторской обязательно' : 'Завершение рейса'}</h2>${needsPhoto ? '<label id="upload" class="upload"><span>📷 Сфотографировать экспедиторскую</span><input id="photo" type="file" accept="image/*" capture="environment" required></label>' : '<p class="note">Подтвердите, что груз отправлен.</p>'}<button id="complete" class="primary" ${needsPhoto ? 'disabled' : ''}>Груз отправлен</button></form>`}`;
   if (!completed) {
     const photo = $('#photo');
     if (photo)
