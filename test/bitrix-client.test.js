@@ -135,3 +135,54 @@ test('creates delivery fields and places them after the requested anchors', asyn
     ['UF_CRM_19_1751013757786', 'UF_CRM_19_DELIVERY_COMPANY_NAME']
   );
 });
+
+test('reuses delivery fields by permanent code when Bitrix omits their labels', async () => {
+  const client = new BitrixClient('https://example.test');
+  const calls = [];
+  client.call = async (method, payload) => {
+    calls.push({ method, payload });
+    if (method === 'crm.type.getByEntityTypeId') return { type: { id: 19 } };
+    if (method === 'userfieldconfig.list')
+      return {
+        fields: [
+          { FIELD_NAME: 'UF_CRM_19_EXPEDITOR_RECEIPT', id: 7001 },
+          { fieldName: 'UF_CRM_19_DELIVERY_COMPANY_NAME', id: 7002 },
+        ],
+      };
+    if (method === 'crm.item.fields')
+      return {
+        fields: {
+          ufCrm19_1751628673880: { title: 'Трек номер' },
+          ufCrm19ExpeditorReceipt: { title: 'Фото экспедиторской расписки' },
+          ufCrm19_1751013757786: { title: 'Условия доставки' },
+          ufCrm19DeliveryCompanyName: { title: 'Название транспортной компании' },
+        },
+      };
+    if (method === 'crm.item.details.configuration.get')
+      return [
+        { name: 'warehouse', elements: [{ name: 'UF_CRM_19_1751628673880' }] },
+        { name: 'delivery', elements: [{ name: 'UF_CRM_19_1751013757786' }] },
+      ];
+    if (method === 'crm.item.details.configuration.set') return true;
+    throw new Error(`Unexpected method: ${method}`);
+  };
+
+  const result = await client.ensureDeliveryFields();
+
+  assert.equal(result.photo.created, false);
+  assert.equal(result.company.created, false);
+  assert.equal(
+    calls.some((call) => call.method === 'userfieldconfig.add'),
+    false
+  );
+  const layoutCall = calls.find((call) => call.method === 'crm.item.details.configuration.set');
+  assert.deepEqual(
+    layoutCall.payload.data.flatMap((section) => section.elements.map((element) => element.name)),
+    [
+      'UF_CRM_19_1751628673880',
+      'UF_CRM_19_EXPEDITOR_RECEIPT',
+      'UF_CRM_19_1751013757786',
+      'UF_CRM_19_DELIVERY_COMPANY_NAME',
+    ]
+  );
+});
