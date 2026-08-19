@@ -20,3 +20,4 @@ build/
 *.tmp
 tmp/
 temp/
+.presentation-build-*/
