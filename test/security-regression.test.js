@@ -182,6 +182,8 @@ test('unauthenticated app stays hidden and role controls remain usable on mobile
   const indexHtml = await fs.readFile(path.join(ROOT, 'public', 'index.html'), 'utf8');
   const appJs = await fs.readFile(path.join(ROOT, 'public', 'assets', 'app.js'), 'utf8');
   const driverCss = await fs.readFile(path.join(ROOT, 'public', 'driver', 'driver.css'), 'utf8');
+  const adminHtml = await fs.readFile(path.join(ROOT, 'public', 'admin.html'), 'utf8');
+  const adminJs = await fs.readFile(path.join(ROOT, 'public', 'assets', 'admin.js'), 'utf8');
   const logistHtml = await fs.readFile(path.join(ROOT, 'public', 'logist', 'index.html'), 'utf8');
 
   assert.match(indexHtml, /<main class="shell" id="appShell" hidden>/);
@@ -191,6 +193,8 @@ test('unauthenticated app stays hidden and role controls remain usable on mobile
   assert.match(appJs, /async function refreshPending\(\).*if \(!app\.user\.login\) return/s);
   assert.match(appJs, /async function refreshLocks\(\).*if \(!app\.user\.login\) return/s);
   assert.match(driverCss, /\.tabs button\{flex:1 1 0;min-width:0/);
+  assert.match(adminHtml, /id="resetDriverForm"/);
+  assert.match(adminJs, /\/api\/admin\/driver\/reset/);
   assert.match(logistHtml, /class="logout-button" aria-label="Выйти из приложения">Выйти<\/button>/);
   assert.doesNotMatch(logistHtml, />↗<\/button>/);
 });
