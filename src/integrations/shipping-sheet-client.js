@@ -46,6 +46,19 @@ const moscowIsoDate = (offsetDays = 0) => {
 };
 const shippingOrderId = (isoDate, orderNumber, row) =>
   `shipping:${isoDate}:${encodeURIComponent(String(orderNumber || `row-${row}`).trim())}`;
+const fillDownShippingClients = (items) => {
+  let date = '';
+  let client = '';
+  return items.map((item) => {
+    const itemDate = normalizeSheetDate(item.date);
+    if (itemDate && itemDate !== date) {
+      date = itemDate;
+      client = '';
+    }
+    if (String(item.client || '').trim()) client = String(item.client).trim();
+    return { ...item, client: String(item.client || '').trim() || client };
+  });
+};
 
 class ShippingSheetClient {
   constructor({ spreadsheetId, sheetName }) {
@@ -89,8 +102,8 @@ class ShippingSheetClient {
       const cell = row.c[index[key]];
       return cell ? String(cell.f ?? cell.v ?? '').trim() : '';
     };
-    return table.rows
-      .map((row, rowIndex) => {
+    return fillDownShippingClients(
+      table.rows.map((row, rowIndex) => {
         const sheetRow = rowIndex + 2;
         const orderNumber = value(row, 'orderNumber');
         return {
@@ -110,7 +123,7 @@ class ShippingSheetClient {
           amount: value(row, 'amount'),
         };
       })
-      .filter((item) => normalizeSheetDate(item.date) === targetDate && (item.orderNumber || item.client));
+    ).filter((item) => normalizeSheetDate(item.date) === targetDate && (item.orderNumber || item.client));
   }
 }
 
@@ -121,4 +134,5 @@ module.exports = {
   sheetDateFromIso,
   moscowIsoDate,
   shippingOrderId,
+  fillDownShippingClients,
 };
