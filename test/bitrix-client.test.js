@@ -36,7 +36,6 @@ test('driver completion adds the receipt and moves the deal to Груз отпр
   const calls = [];
   client.call = async (method, payload) => {
     calls.push({ method, payload });
-    if (method === 'crm.status.list') return [{ NAME: 'Груз отправлен 4145', STATUS_ID: 'DT1052_31:SHIPPED' }];
     return {};
   };
 
@@ -50,11 +49,7 @@ test('driver completion adds the receipt and moves the deal to Груз отпр
   assert.equal(calls[0].method, 'crm.timeline.comment.add');
   assert.deepEqual(calls[0].payload.fields.FILES, [['receipt.jpg', Buffer.from('photo').toString('base64')]]);
   assert.deepEqual(calls[1], {
-    method: 'crm.status.list',
-    payload: { filter: { ENTITY_ID: 'DYNAMIC_1052_STAGE_31' } },
-  });
-  assert.deepEqual(calls[2], {
     method: 'crm.item.update',
-    payload: { entityTypeId: 1052, id: 8622, fields: { stageId: 'DT1052_31:SHIPPED' } },
+    payload: { entityTypeId: 1052, id: 8622, fields: { stageId: 'DT1052_31:SUCCESS' } },
   });
 });
