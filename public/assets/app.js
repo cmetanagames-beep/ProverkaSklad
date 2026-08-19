@@ -106,7 +106,7 @@ function orderRows(rows) {
           const status = checkStatus(o),
             lock = app.locks.find((x) => String(x.orderId) === String(o.id) && x.warehouse === app.user.warehouse),
             busy = lock && lock.employee !== app.user.name;
-          return `<button class="order ${status.kind} ${busy ? 'is-busy' : ''}" data-order="${o.id}" ${busy ? 'aria-disabled="true"' : ''}><span class="order-icon">${busy ? lock.employee.slice(0, 1) : '▤'}</span><span><b>${displayOrderTitle(o.title)}</b><small class="order-client">${clientName(o.title)}</small>${plannedBadge(o.plannedShipment)}${busy ? `<span class="live-worker"><i></i>Проверяет ${lock.employee} · ${lock.warehouse}</span>` : `<span class="order-status">${status.label}</span>`}</span><span class="chev">${busy ? '●' : '›'}</span></button>`;
+          return `<button class="order ${status.kind} ${busy ? 'is-busy' : ''}" data-order="${o.id}" ${busy ? 'aria-disabled="true"' : ''}><span class="order-sequence" aria-hidden="true"></span><span class="order-copy"><b class="order-number">${displayOrderTitle(o.title)}</b><strong class="order-client">${clientName(o.title)}</strong>${plannedBadge(o.plannedShipment)}${busy ? `<span class="order-status status-waiting"><i></i>Проверяет ${lock.employee} · ${lock.warehouse}</span>` : `<span class="order-status ${status.kind}"><i></i>${status.label}</span>`}</span><span class="chev">›</span></button>`;
         })
         .join('')
     : '<div class="empty">Заказы не найдены</div>';

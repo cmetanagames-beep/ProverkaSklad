@@ -219,7 +219,7 @@ function renderOrders() {
     rows
       .map(
         (order) =>
-          `<button class="order" data-id="${esc(order.id)}"><div><time>${esc(order.date || 'Дата не указана')}</time><h3>${esc(order.client || 'Клиент не указан')}${order.isGroup ? ` · ${order.orderNumbers.length} заказа` : ''}</h3><p>${order.isGroup ? 'Заказы' : 'Заказ'} № ${esc(order.orderNumber || '—')} · ${esc(order.warehouse || 'Склад не указан')}</p><span class="tag ${/^тк(?:\s|$)/i.test(order.delivery) ? 'tk' : ''}">${esc(order.delivery || 'Доставка не указана')}</span>${order.completed ? `<div class="done-mark">${order.completed.queued ? '◷ Ожидает отправки' : '✓ Отправлено'}</div>` : ''}</div><span class="chev">›</span></button>`
+          `<button class="order" data-id="${esc(order.id)}"><div><time>${esc(order.date || 'Дата не указана')}</time><h3>${esc(order.client || 'Клиент не указан')}${order.isGroup ? ` · ${order.orderNumbers.length} заказа` : ''}</h3><p>${order.isGroup ? 'Заказы' : 'Заказ'} № ${esc(order.orderNumber || '—')} · ${esc(order.warehouse || 'Склад не указан')}</p><span class="tag ${/^тк(?:\s|$)/i.test(order.delivery) ? 'tk' : ''}">${esc(order.delivery || 'Доставка не указана')}</span>${order.completed ? `<div class="delivery-status ${order.completed.queued ? 'status-waiting' : 'status-success'}"><i></i>${order.completed.queued ? 'Ожидает отправки' : 'Отправлено'}</div>` : '<div class="delivery-status status-neutral"><i></i>Не начат</div>'}</div><span class="chev">›</span></button>`
       )
       .join('') || '<div class="empty">В этом разделе пока нет рейсов</div>';
   document.querySelectorAll('[data-id]').forEach((button) => (button.onclick = () => openOrder(button.dataset.id)));

@@ -218,7 +218,7 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   const serverAppJs = await fs.readFile(path.join(ROOT, 'src', 'app.js'), 'utf8');
   assert.match(driverHtml, /data-filter="tomorrow">Завтра</);
   assert.match(driverHtml, /src="\/assets\/logo\.svg" alt="AKFIX"/);
-  assert.match(driverHtml, /driver\.js\?v=16/);
+  assert.match(driverHtml, /driver\.js\?v=17/);
   assert.match(driverJs, /async function complete[\s\S]*await markQueued\(order, photo\)/);
   assert.match(driverJs, /Принято\. Отправляем в фоне — можно продолжать работу\./);
   assert.match(driverJs, /if \(navigator\.onLine\) \{\s*syncQueue\(\);\s*return;/);
@@ -252,6 +252,28 @@ test('unauthenticated app stays hidden and role controls remain usable on mobile
   assert.match(adminJs, /\/api\/admin\/driver\/reset/);
   assert.match(logistHtml, /class="logout-button" aria-label="Выйти из приложения">Выйти<\/button>/);
   assert.doesNotMatch(logistHtml, />↗<\/button>/);
+});
+
+test('warehouse and driver lists use the same explicit status language', async () => {
+  const indexHtml = await fs.readFile(path.join(ROOT, 'public', 'index.html'), 'utf8');
+  const appJs = await fs.readFile(path.join(ROOT, 'public', 'assets', 'app.js'), 'utf8');
+  const statusCss = await fs.readFile(path.join(ROOT, 'public', 'assets', 'order-status.css'), 'utf8');
+  const driverJs = await fs.readFile(path.join(ROOT, 'public', 'driver', 'driver.js'), 'utf8');
+  const sw = await fs.readFile(path.join(ROOT, 'public', 'sw.js'), 'utf8');
+
+  assert.match(indexHtml, /assets\/order-status\.css/);
+  assert.match(appJs, /class="order-sequence"/);
+  assert.match(appJs, /class="order-number"/);
+  assert.match(appJs, /status-waiting/);
+  assert.match(statusCss, /--status-info:/);
+  assert.match(statusCss, /--status-success:/);
+  assert.match(statusCss, /--status-waiting:/);
+  assert.match(statusCss, /--status-action:/);
+  assert.match(statusCss, /--status-neutral:/);
+  assert.match(driverJs, /delivery-status status-neutral/);
+  assert.match(driverJs, /delivery-status \$\{order\.completed\.queued \? 'status-waiting' : 'status-success'\}/);
+  assert.match(sw, /akfix-shell-v17/);
+  assert.match(sw, /assets\/order-status\.css/);
 });
 
 test('receiving is part of unified navigation and safely replaces an Excel file', async () => {
