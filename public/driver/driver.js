@@ -266,8 +266,9 @@ async function openOrder(id) {
   $('#detail').innerHTML = '<div class="empty">Открываем заказ…</div>';
   try {
     let detail = null;
+    let onlineError = null;
     if (state.filter === 'history') {
-      const order = state.orders.find((item) => item.id === id);
+      const order = state.orders.find((item) => String(item.id) === String(id));
       if (order) detail = { order, bitrix: null, completed: order.completed };
     }
     if (!detail && navigator.onLine) {
@@ -276,17 +277,21 @@ async function openOrder(id) {
           `/api/driver/order?id=${encodeURIComponent(id)}&date=${encodeURIComponent(orderListDate())}`
         );
         await DriverOffline.saveDetail(state.user.login, id, detail);
-      } catch {
+      } catch (error) {
+        onlineError = error;
         detail = await DriverOffline.loadDetail(state.user.login, id);
       }
     } else if (!detail) detail = await DriverOffline.loadDetail(state.user.login, id);
-    if (!detail) throw new Error('NO_OFFLINE_DETAIL');
-    const pending = (await DriverOffline.queued(state.user.login)).find((item) => item.order.id === id);
+    if (!detail) throw onlineError || new Error('NO_OFFLINE_DETAIL');
+    const pending = (await DriverOffline.queued(state.user.login)).find((item) => String(item.order.id) === String(id));
     if (pending) detail.completed = { queued: true, completedAt: pending.createdAt };
     renderDetail(detail);
   } catch {
-    $('#detail').innerHTML =
-      '<div class="empty">Эта карточка ещё не была загружена на телефон. Откройте её один раз с интернетом.</div>';
+    $('#detail').innerHTML = navigator.onLine
+      ? '<div class="empty"><b>Не удалось загрузить карточку</b><p>Обновите данные и попробуйте открыть рейс ещё раз.</p><button class="secondary" id="retryDetail">Повторить</button></div>'
+      : '<div class="empty">Эта карточка ещё не была загружена на телефон. Откройте её один раз с интернетом.</div>';
+    const retry = $('#retryDetail');
+    if (retry) retry.onclick = () => openOrder(id);
   }
 }
 

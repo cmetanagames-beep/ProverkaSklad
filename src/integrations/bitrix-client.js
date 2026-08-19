@@ -81,9 +81,11 @@ class BitrixClient {
   }
 
   async findItemByOrderNumber(orderNumber) {
-    const digits = String(orderNumber || '').replace(/\D/g, '');
+    const rawReference = String(orderNumber || '').trim();
+    const digits = rawReference.replace(/\D/g, '');
     if (!digits) throw new Error('BITRIX_ORDER_NUMBER_REQUIRED');
-    const reference = `АФУТ-${digits.padStart(6, '0')}`;
+    const formattedReference = `АФУТ-${digits.padStart(6, '0')}`;
+    const references = [...new Set([rawReference, formattedReference])];
     const definitionsResult = await this.getItemFields();
     const definitions = definitionsResult.fields || definitionsResult;
     const numberField = Object.entries(definitions).find(
@@ -92,22 +94,27 @@ class BitrixClient {
           .trim()
           .toLocaleLowerCase('ru') === 'номер счета'
     )?.[0];
-    const result = await this.call('crm.item.list', {
-      entityTypeId: 1052,
-      filter: numberField ? { [numberField]: reference } : { '%title': reference },
-      select: ['id', 'title', ...(numberField ? [numberField] : [])],
-      order: { id: 'DESC' },
-    });
-    const items = Array.isArray(result) ? result : result.items || [];
-    const item = items.find((candidate) =>
-      numberField
-        ? String(candidate[numberField] || '').toLocaleUpperCase('ru') === reference
-        : String(candidate.title || '')
-            .toLocaleUpperCase('ru')
-            .includes(reference)
-    );
-    if (!item?.id) throw new Error(`BITRIX_ORDER_NOT_FOUND: ${reference}`);
-    return this.getItem(item.id);
+    for (const reference of references) {
+      const normalizedReference = reference.toLocaleUpperCase('ru');
+      const result = await this.call('crm.item.list', {
+        entityTypeId: 1052,
+        filter: numberField ? { [numberField]: reference } : { '%title': reference },
+        select: ['id', 'title', ...(numberField ? [numberField] : [])],
+        order: { id: 'DESC' },
+      });
+      const items = Array.isArray(result) ? result : result.items || [];
+      const item = items.find((candidate) =>
+        numberField
+          ? String(candidate[numberField] || '')
+              .trim()
+              .toLocaleUpperCase('ru') === normalizedReference
+          : String(candidate.title || '')
+              .toLocaleUpperCase('ru')
+              .includes(normalizedReference)
+      );
+      if (item?.id) return this.getItem(item.id);
+    }
+    throw new Error(`BITRIX_ORDER_NOT_FOUND: ${formattedReference}`);
   }
 
   async getItemFields() {
