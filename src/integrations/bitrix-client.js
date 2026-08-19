@@ -1,6 +1,13 @@
 class BitrixClient {
-  constructor(webhookBase) { this.webhookBase = webhookBase; this.acceptedVerificationStageId = null; this.itemFields = null; }
-  get configured() { return Boolean(this.webhookBase); }
+  constructor(webhookBase) {
+    this.webhookBase = webhookBase;
+    this.acceptedVerificationStageId = null;
+    this.driverShippedStageId = null;
+    this.itemFields = null;
+  }
+  get configured() {
+    return Boolean(this.webhookBase);
+  }
 
   async call(method, payload, contentType = 'application/json') {
     if (!this.configured) throw new Error('BITRIX_NOT_CONFIGURED');
@@ -10,15 +17,16 @@ class BitrixClient {
       body: contentType === 'application/json' ? JSON.stringify(payload) : payload,
     });
     const data = await response.json();
-    if (!response.ok || data.error) throw new Error(`BITRIX: ${data.error_description || data.error || response.status}`);
+    if (!response.ok || data.error)
+      throw new Error(`BITRIX: ${data.error_description || data.error || response.status}`);
     return data.result;
   }
 
   async updateWarehousePhotos({ orderId, warehouse, files }) {
     if (!files.length) return;
     const photoFields = {
-      'Балашиха': 'ufCrm19_1752654317973',
-      'Мытищи': 'ufCrm19_1761641310794',
+      Балашиха: 'ufCrm19_1752654317973',
+      Мытищи: 'ufCrm19_1761641310794',
     };
     const field = photoFields[warehouse];
     if (!field) throw new Error(`UNKNOWN_WAREHOUSE: ${warehouse}`);
@@ -26,7 +34,7 @@ class BitrixClient {
       entityTypeId: 1052,
       id: Number(orderId),
       fields: {
-        [field]: files.map(file => [file.filename, file.buffer.toString('base64')]),
+        [field]: files.map((file) => [file.filename, file.buffer.toString('base64')]),
       },
     });
   }
@@ -34,7 +42,11 @@ class BitrixClient {
   async updateCombinedPhotos({ orderId, files }) {
     if (!files.length) return;
     const field = process.env.BITRIX_COMBINED_PHOTOS_FIELD || 'ufCrm19_1786441124042';
-    return this.call('crm.item.update', { entityTypeId: 1052, id: Number(orderId), fields: { [field]: files.map(file => [file.filename, file.buffer.toString('base64')]) } });
+    return this.call('crm.item.update', {
+      entityTypeId: 1052,
+      id: Number(orderId),
+      fields: { [field]: files.map((file) => [file.filename, file.buffer.toString('base64')]) },
+    });
   }
 
   async updateFinalPalletCount({ orderId, euro, american }) {
@@ -67,8 +79,11 @@ class BitrixClient {
     const reference = `АФУТ-${digits.padStart(6, '0')}`;
     const definitionsResult = await this.getItemFields();
     const definitions = definitionsResult.fields || definitionsResult;
-    const numberField = Object.entries(definitions).find(([, definition]) =>
-      String(definition.title || '').trim().toLocaleLowerCase('ru') === 'номер счета'
+    const numberField = Object.entries(definitions).find(
+      ([, definition]) =>
+        String(definition.title || '')
+          .trim()
+          .toLocaleLowerCase('ru') === 'номер счета'
     )?.[0];
     const result = await this.call('crm.item.list', {
       entityTypeId: 1052,
@@ -77,9 +92,13 @@ class BitrixClient {
       order: { id: 'DESC' },
     });
     const items = Array.isArray(result) ? result : result.items || [];
-    const item = items.find(candidate => numberField
-      ? String(candidate[numberField] || '').toLocaleUpperCase('ru') === reference
-      : String(candidate.title || '').toLocaleUpperCase('ru').includes(reference));
+    const item = items.find((candidate) =>
+      numberField
+        ? String(candidate[numberField] || '').toLocaleUpperCase('ru') === reference
+        : String(candidate.title || '')
+            .toLocaleUpperCase('ru')
+            .includes(reference)
+    );
     if (!item?.id) throw new Error(`BITRIX_ORDER_NOT_FOUND: ${reference}`);
     return this.getItem(item.id);
   }
@@ -99,42 +118,75 @@ class BitrixClient {
     if (file) fields.FILES = [[file.filename, file.buffer.toString('base64')]];
     await this.call('crm.timeline.comment.add', { fields });
     const photoField = process.env.BITRIX_EXPEDITOR_PHOTO_FIELD;
-    if (file && photoField) await this.call('crm.item.update', { entityTypeId: 1052, id: Number(orderId), fields: { [photoField]: [[file.filename, file.buffer.toString('base64')]] } });
+    if (file && photoField)
+      await this.call('crm.item.update', {
+        entityTypeId: 1052,
+        id: Number(orderId),
+        fields: { [photoField]: [[file.filename, file.buffer.toString('base64')]] },
+      });
+    await this.moveToDriverShipped(orderId);
+  }
+
+  async moveToDriverShipped(orderId) {
+    if (!this.driverShippedStageId) {
+      this.driverShippedStageId = String(process.env.BITRIX_DRIVER_SHIPPED_STAGE_ID || '').trim();
+      if (!this.driverShippedStageId) {
+        const stages = await this.call('crm.status.list', { filter: { ENTITY_ID: 'DYNAMIC_1052_STAGE_31' } });
+        const target = stages.find((stage) => /^груз\s+отправлен$/i.test(String(stage.NAME || '').trim()));
+        if (!target) throw new Error('BITRIX_STAGE_NOT_FOUND: Груз отправлен');
+        this.driverShippedStageId = target.STATUS_ID;
+      }
+    }
+    return this.call('crm.item.update', {
+      entityTypeId: 1052,
+      id: Number(orderId),
+      fields: { stageId: this.driverShippedStageId },
+    });
   }
 
   async deleteComment({ orderId, commentId }) {
     return this.call('crm.timeline.comment.delete', {
-      id: Number(commentId), ownerTypeId: 1052, ownerId: Number(orderId),
+      id: Number(commentId),
+      ownerTypeId: 1052,
+      ownerId: Number(orderId),
     });
   }
 
   async clearWarehousePhotos({ orderId, warehouse }) {
     const photoFields = {
-      'Балашиха': 'ufCrm19_1752654317973',
-      'Мытищи': 'ufCrm19_1761641310794',
+      Балашиха: 'ufCrm19_1752654317973',
+      Мытищи: 'ufCrm19_1761641310794',
     };
     const field = photoFields[warehouse];
     if (!field) throw new Error(`UNKNOWN_WAREHOUSE: ${warehouse}`);
     return this.call('crm.item.update', {
-      entityTypeId: 1052, id: Number(orderId), fields: { [field]: [] },
+      entityTypeId: 1052,
+      id: Number(orderId),
+      fields: { [field]: [] },
     });
   }
 
   async clearCombinedPhotos(orderId) {
     const field = process.env.BITRIX_COMBINED_PHOTOS_FIELD || 'ufCrm19_1786441124042';
     return this.call('crm.item.update', {
-      entityTypeId: 1052, id: Number(orderId), fields: { [field]: [] },
+      entityTypeId: 1052,
+      id: Number(orderId),
+      fields: { [field]: [] },
     });
   }
 
   async moveToAcceptedVerification(orderId) {
     if (!this.acceptedVerificationStageId) {
       const stages = await this.call('crm.status.list', { filter: { ENTITY_ID: 'DYNAMIC_1052_STAGE_31' } });
-      const target = stages.find(stage => /^принято на проверку$/i.test(String(stage.NAME || '').trim()));
+      const target = stages.find((stage) => /^принято на проверку$/i.test(String(stage.NAME || '').trim()));
       if (!target) throw new Error('BITRIX_STAGE_NOT_FOUND: Принято на проверку');
       this.acceptedVerificationStageId = target.STATUS_ID;
     }
-    return this.call('crm.item.update', { entityTypeId: 1052, id: Number(orderId), fields: { stageId: this.acceptedVerificationStageId } });
+    return this.call('crm.item.update', {
+      entityTypeId: 1052,
+      id: Number(orderId),
+      fields: { stageId: this.acceptedVerificationStageId },
+    });
   }
 
   async proxy(method, body, contentType) {
