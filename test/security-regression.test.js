@@ -198,6 +198,8 @@ test('receiving is part of unified navigation and safely replaces an Excel file'
   const loadingCss = await fs.readFile(path.join(ROOT, 'public', 'assets', 'app-loading.css'), 'utf8');
   const navCss = await fs.readFile(path.join(ROOT, 'public', 'assets', 'nav-fix.css'), 'utf8');
   const mainHtml = await fs.readFile(path.join(ROOT, 'public', 'index.html'), 'utf8');
+  const driverHtml = await fs.readFile(path.join(ROOT, 'public', 'driver', 'index.html'), 'utf8');
+  const driverCss = await fs.readFile(path.join(ROOT, 'public', 'driver', 'driver.css'), 'utf8');
 
   assert.match(receivingHtml, /class="receiving-nav"/);
   assert.match(receivingHtml, /href="\/">Заказы<\/a>/);
@@ -218,6 +220,14 @@ test('receiving is part of unified navigation and safely replaces an Excel file'
   assert.match(appJs, /const showLogin[\s\S]*auth\.hidden\s*=\s*false/);
   assert.match(appJs, /async function restoreSession\(\)/);
   assert.match(appJs, /attempt < 3/);
+  assert.match(appJs, /response\.status === 401\) break/);
+  assert.match(appJs, /function renderOrdersLoading\(\)/);
+  assert.match(appJs, /event\.key === 'Escape'\) closeHelp\(\)/);
+  assert.match(appJs, /helpOpener\?\.focus\?\.\(\)/);
+  assert.match(driverHtml, /id="boot" class="app-boot"/);
+  assert.match(driverHtml, /id="login" class="login" hidden/);
+  assert.match(driverCss, /grid-template-columns:1fr 1fr/);
+  assert.match(receivingJs, /products\.length\?'<button class="header-action" id="newExcel">Загрузить другой Excel/);
   assert.match(loadingCss, /akfix-splash-out \.35s ease 2s forwards/);
   assert.match(navCss, /overscroll-behavior-y:none/);
   assert.match(navCss, /\.bottom-nav\{left:0!important;right:0!important/);
