@@ -367,7 +367,14 @@ class Application {
 
   async #adminEnsureDeliveryFields(req, res) {
     if (!this.#admin(req, res)) return;
-    sendJson(res, 200, await this.bitrix.ensureDeliveryFields());
+    try {
+      sendJson(res, 200, await this.bitrix.ensureDeliveryFields());
+    } catch (error) {
+      sendJson(res, 502, {
+        error: 'BITRIX_DELIVERY_FIELDS_SETUP_FAILED',
+        detail: String(error.message || error).replace(/https?:\/\/\S+/gi, '[hidden]').slice(0, 500),
+      });
+    }
   }
 
   async #proxyBitrix(req, res, method) {
