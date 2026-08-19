@@ -1,5 +1,5 @@
 const $ = (selector) => document.querySelector(selector);
-const state = { user: null, orders: [], filter: 'active', offline: !navigator.onLine };
+const state = { user: null, orders: [], filter: 'active', offline: !navigator.onLine, currentOrderId: null };
 function finishBoot() {
   const boot = $('#boot');
   if (!boot) return;
@@ -245,7 +245,7 @@ function renderDetail({ order, bitrix, completed }) {
     ? ''
     : `<div class="panel"><h2>Доставка из Битрикс24</h2><div class="bitrix">${fields.length ? fields.map((field) => `<div><span>${esc(field.label)}</span>${esc(field.value)}</div>`).join('') : '<p class="note">Поля доставки в сделке не заполнены.</p>'}</div></div>`;
   $('#detail').innerHTML =
-    `<div class="hero"><p class="hero-order">Заказ № ${esc(order.orderNumber || '—')}${bitrixNumber ? ` · Bitrix ${esc(bitrixNumber)}` : ''}</p><h1>${esc(order.client || 'Заказ')}</h1></div><div class="panel facts"><div class="fact"><small>Дата</small><b>${esc(order.date || '—')}</b></div><div class="fact"><small>Склад</small><b>${esc(order.warehouse || '—')}</b></div><div class="fact"><small>Доставка</small><b>${esc(order.delivery || '—')}</b></div><div class="fact"><small>Документы</small><b>${esc(order.documents || '—')}</b></div><div class="fact"><small>Честный знак</small><b>${esc(order.marking || '—')}</b></div><div class="fact"><small>Перебивка</small><b>${esc(order.relabel || '—')}</b></div></div>${bitrixPanel}${completed ? `<div class="panel done-mark">${completed.queued ? '◷ Сохранено на телефоне. Отправится после появления интернета.' : '✓ Рейс завершён ' + new Date(completed.completedAt).toLocaleString('ru-RU')}</div>` : `<form id="completeForm" class="panel"><h2>${needsPhoto ? 'Фото экспедиторской обязательно' : 'Завершение рейса'}</h2>${needsPhoto ? '<label id="upload" class="upload"><span>📷 Сфотографировать экспедиторскую</span><input id="photo" type="file" accept="image/*" capture="environment" required></label>' : '<p class="note">Подтвердите, что груз отправлен.</p>'}<button id="complete" class="primary" ${needsPhoto ? 'disabled' : ''}>Груз отправлен</button></form>`}`;
+    `<div class="hero"><p class="hero-order">Заказ № ${esc(order.orderNumber || '—')}${bitrixNumber ? ` · Bitrix ${esc(bitrixNumber)}` : ''}</p><h1>${esc(order.client || 'Заказ')}</h1></div><div class="panel facts"><div class="fact"><small>Дата</small><b>${esc(order.date || '—')}</b></div><div class="fact"><small>Склад</small><b>${esc(order.warehouse || '—')}</b></div><div class="fact"><small>Доставка</small><b>${esc(order.delivery || '—')}</b></div><div class="fact"><small>Документы</small><b>${esc(order.documents || '—')}</b></div><div class="fact"><small>Честный знак</small><b>${esc(order.marking || '—')}</b></div><div class="fact"><small>Перебивка</small><b>${esc(order.relabel || '—')}</b></div></div>${bitrixPanel}${completed ? `<div class="panel done-mark">${completed.queued ? (navigator.onLine ? '✓ Принято. Отправляем в фоне — можно закрыть приложение.' : '◷ Сохранено на телефоне. Отправится после появления интернета.') : '✓ Рейс завершён ' + new Date(completed.completedAt).toLocaleString('ru-RU')}</div>` : `<form id="completeForm" class="panel"><h2>${needsPhoto ? 'Фото экспедиторской обязательно' : 'Завершение рейса'}</h2>${needsPhoto ? '<label id="upload" class="upload"><span>📷 Сфотографировать экспедиторскую</span><input id="photo" type="file" accept="image/*" capture="environment" required></label>' : '<p class="note">Подтвердите, что груз отправлен.</p>'}<button id="complete" class="primary" ${needsPhoto ? 'disabled' : ''}>Груз отправлен</button></form>`}`;
   if (!completed) {
     const photo = $('#photo');
     if (photo)
@@ -261,6 +261,7 @@ function renderDetail({ order, bitrix, completed }) {
 }
 
 async function openOrder(id) {
+  state.currentOrderId = id;
   $('#listScreen').hidden = true;
   $('#detailScreen').hidden = false;
   $('#detail').innerHTML = '<div class="empty">Открываем заказ…</div>';
@@ -296,45 +297,52 @@ async function openOrder(id) {
 }
 
 async function markQueued(order, photo) {
-  await DriverOffline.enqueue(state.user, order, photo);
-  const current = state.orders.find((item) => item.id === order.id);
-  if (current) current.completed = { queued: true, completedAt: new Date().toISOString() };
-  await DriverOffline.saveOrders(state.user.login, isoFromSheetDate(order.date), state.orders);
-  navigator.serviceWorker?.ready
-    .then((registration) => registration.sync?.register('akfix-driver-upload'))
-    .catch(() => {});
-  toast('Сохранено на телефоне. Отправим после появления интернета.');
+  const [, cachedDetail] = await Promise.all([
+    DriverOffline.enqueue(state.user, order, photo),
+    DriverOffline.loadDetail(state.user.login, order.id),
+  ]);
+  const completed = { queued: true, completedAt: new Date().toISOString() };
+  const current = state.orders.find((item) => String(item.id) === String(order.id));
+  if (current) current.completed = completed;
+  DriverOffline.saveOrders(state.user.login, isoFromSheetDate(order.date), state.orders).catch(() => {});
+  toast(navigator.onLine ? 'Принято. Можно закрыть приложение.' : 'Сохранено. Отправим после появления интернета.');
   renderDetail({
     order,
-    bitrix: (await DriverOffline.loadDetail(state.user.login, order.id))?.bitrix,
-    completed: current.completed,
+    bitrix: cachedDetail?.bitrix,
+    completed,
   });
+  scheduleQueuedUpload();
+}
+
+function scheduleQueuedUpload() {
+  const ready = navigator.serviceWorker?.ready;
+  if (!ready) {
+    if (navigator.onLine) syncQueue();
+    return;
+  }
+  ready
+    .then((registration) => {
+      if (registration.sync?.register) return registration.sync.register('akfix-driver-upload');
+      if (navigator.onLine) return syncQueue();
+      return null;
+    })
+    .catch(() => {
+      if (navigator.onLine) syncQueue();
+    });
 }
 
 async function complete(event, order) {
   event.preventDefault();
   const button = $('#complete');
   button.disabled = true;
-  button.textContent = navigator.onLine ? 'Отправляем…' : 'Сохраняем…';
+  button.textContent = 'Сохраняем…';
   const photo = $('#photo')?.files[0] || null;
-  if (!navigator.onLine) return markQueued(order, photo);
-  const form = new FormData();
-  form.set('orderId', order.id);
-  form.set('date', isoFromSheetDate(order.date));
-  if (photo) form.append('expeditorPhoto', photo, photo.name || 'expeditor.jpg');
   try {
-    await api('/api/driver/complete', { method: 'POST', body: form });
-    toast('Рейс успешно завершён');
-    await loadOrders();
-    openOrder(order.id);
-  } catch (error) {
-    if (error.message === 'EXPEDITOR_PHOTO_REQUIRED') {
-      toast('Добавьте фото экспедиторской');
-      button.disabled = false;
-      button.textContent = 'Груз отправлен';
-    } else {
-      await markQueued(order, photo);
-    }
+    await markQueued(order, photo);
+  } catch {
+    toast('Не удалось сохранить отправку. Повторите ещё раз.');
+    button.disabled = false;
+    button.textContent = 'Груз отправлен';
   }
 }
 
@@ -358,6 +366,7 @@ async function syncQueue() {
   if (sent) {
     toast(`Отправлено из очереди: ${sent}`);
     await loadOrders();
+    if (state.currentOrderId) await openOrder(state.currentOrderId);
   }
 }
 
@@ -384,6 +393,7 @@ $('#historyDate').max = new Date().toISOString().slice(0, 10);
 $('#historyDate').value = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 $('#historyDate').onchange = loadHistory;
 $('#back').onclick = () => {
+  state.currentOrderId = null;
   $('#detailScreen').hidden = true;
   $('#listScreen').hidden = false;
 };

@@ -154,7 +154,7 @@ class Application {
     if (row.orderNumber && this.bitrix.configured) {
       const result = await this.bitrix.findItemByOrderNumber(row.orderNumber);
       bitrixItemId = String((result.item || result).id || '');
-      await this.bitrix.completeDriverDelivery({ orderId: bitrixItemId, driverName: user.name, delivery: row.delivery, file });
+      await this.bitrix.completeDriverDelivery({ orderId: bitrixItemId, file });
     }
     if (file && this.telegramExpeditor.configured) {
       const caption = [

@@ -126,11 +126,7 @@ class BitrixClient {
     return this.call('crm.item.update', { entityTypeId: 1052, id: Number(orderId), fields });
   }
 
-  async completeDriverDelivery({ orderId, driverName, delivery, file }) {
-    const comment = `Водитель ${driverName} отметил отправку груза. Способ доставки: ${delivery || 'не указан'}.`;
-    const fields = { ENTITY_ID: Number(orderId), ENTITY_TYPE: 'dynamic_1052', COMMENT: comment };
-    if (file) fields.FILES = [[file.filename, file.buffer.toString('base64')]];
-    await this.call('crm.timeline.comment.add', { fields });
+  async completeDriverDelivery({ orderId, file }) {
     const photoField = 'ufCrm19ExpeditorReceipt';
     if (file)
       await this.call('crm.item.update', {
