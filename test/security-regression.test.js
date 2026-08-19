@@ -174,12 +174,16 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   const serverAppJs = await fs.readFile(path.join(ROOT, 'src', 'app.js'), 'utf8');
   assert.match(driverHtml, /data-filter="tomorrow">Завтра</);
   assert.match(driverHtml, /src="\/assets\/logo\.svg" alt="AKFIX"/);
+  assert.match(driverHtml, /driver\.js\?v=14/);
   assert.match(driverJs, /async function complete[\s\S]*await markQueued\(order, photo\)/);
   assert.match(driverJs, /Принято\. Отправляем в фоне — можно продолжать работу\./);
   assert.match(driverJs, /if \(navigator\.onLine\) \{\s*syncQueue\(\);\s*return;/);
   assert.match(serverAppJs, /const existing = this\.driverDeliveries\.get\(user\.login, row\.id\)/);
   assert.match(serverAppJs, /telegramSentAt: new Date\(\)\.toISOString\(\)/);
   assert.match(driverJs, /registration\.sync\?\.register/);
+  assert.match(driverJs, /serviceWorker\.addEventListener\('controllerchange'/);
+  const sw = await fs.readFile(path.join(ROOT, 'public', 'sw.js'), 'utf8');
+  assert.match(sw, /form\.set\('date', match \?/);
 });
 
 test('unauthenticated app stays hidden and role controls remain usable on mobile', async () => {
