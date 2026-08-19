@@ -129,7 +129,7 @@ class BitrixClient {
 
   async moveToDriverShipped(orderId) {
     if (!this.driverShippedStageId) {
-      this.driverShippedStageId = String(process.env.BITRIX_DRIVER_SHIPPED_STAGE_ID || '').trim();
+      this.driverShippedStageId = String(process.env.BITRIX_DRIVER_SHIPPED_STAGE_ID || 'DT1052_31:SUCCESS').trim();
       if (!this.driverShippedStageId) {
         const stages = await this.call('crm.status.list', { filter: { ENTITY_ID: 'DYNAMIC_1052_STAGE_31' } });
         const target = stages.find((stage) => /^груз\s+отправлен(?:\s+\d+)?$/i.test(String(stage.NAME || '').trim()));
