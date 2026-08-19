@@ -230,15 +230,16 @@ test('product presentation is public, responsive and interactive', async () => {
   const response = await fetch(`${BASE}/presentation/`);
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /Склад и доставка —<br><span>в одном рабочем контуре<\/span>/);
-  assert.match(html, /Одно действие водителя запускает весь поток/);
-  assert.match(html, /Рабочая сделка не изменяется/);
+  assert.match(html, /Один вход\.<br><span>Весь путь заказа\.<\/span>/);
+  assert.match(html, /Одно подтверждение — четыре связанных результата/);
+  assert.match(html, /данные в Bitrix24 не изменялись/);
+  assert.match(html, /real-driver-today\.png/);
+  assert.match(html, /real-checker-orders\.png/);
 
   const script = await fs.readFile(path.join(ROOT, 'public', 'presentation', 'app.js'), 'utf8');
   const styles = await fs.readFile(path.join(ROOT, 'public', 'presentation', 'styles.css'), 'utf8');
   assert.match(script, /setRole/);
-  assert.match(script, /setStep/);
   assert.match(script, /IntersectionObserver/);
   assert.match(styles, /prefers-reduced-motion:\s*reduce/);
-  assert.match(styles, /@media\(max-width:520px\)/);
+  assert.match(styles, /@media\(max-width:560px\)/);
 });
