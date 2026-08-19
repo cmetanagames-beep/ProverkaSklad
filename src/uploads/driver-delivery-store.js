@@ -19,6 +19,15 @@ class DriverDeliveryStore {
     this.items[`bitrix:${orderId}`] = value; await this.#save(); return value;
   }
   async complete(item) { this.items[`${item.login}:${item.orderId}`] = item; await this.#save(); return item; }
+  async reset(login, orderId) {
+    const key = `${login}:${orderId}`;
+    const item = this.items[key];
+    if (!item) return null;
+    delete this.items[key];
+    await this.#save();
+    if (item.photo?.id) await fs.unlink(path.join(this.photoDir, item.photo.id)).catch(error => { if (error.code !== 'ENOENT') throw error; });
+    return item;
+  }
   async savePhoto(file) {
     if (!file?.buffer) return null;
     await fs.mkdir(this.photoDir, { recursive: true });

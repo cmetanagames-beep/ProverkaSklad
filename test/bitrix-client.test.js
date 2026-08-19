@@ -54,7 +54,7 @@ test('does not accept a different account number returned by Bitrix', async () =
   await assert.rejects(() => client.findItemByOrderNumber('3424'), /BITRIX_ORDER_NOT_FOUND: АФУТ-003424/);
 });
 
-test('driver completion adds the receipt and moves the deal to Груз отправлен', async () => {
+test('driver completion saves the receipt without a timeline comment and moves the deal to Груз отправлен', async () => {
   const client = new BitrixClient('https://example.test');
   const calls = [];
   client.call = async (method, payload) => {
@@ -64,14 +64,14 @@ test('driver completion adds the receipt and moves the deal to Груз отпр
 
   await client.completeDriverDelivery({
     orderId: '8622',
-    driverName: 'Магомедов Шамиль',
-    delivery: 'ТК Деловые линии',
     file: { filename: 'receipt.jpg', buffer: Buffer.from('photo') },
   });
 
-  assert.equal(calls[0].method, 'crm.timeline.comment.add');
-  assert.deepEqual(calls[0].payload.fields.FILES, [['receipt.jpg', Buffer.from('photo').toString('base64')]]);
-  assert.deepEqual(calls[1], {
+  assert.equal(
+    calls.some((call) => call.method === 'crm.timeline.comment.add'),
+    false
+  );
+  assert.deepEqual(calls[0], {
     method: 'crm.item.update',
     payload: {
       entityTypeId: 1052,
@@ -81,9 +81,30 @@ test('driver completion adds the receipt and moves the deal to Груз отпр
       },
     },
   });
-  assert.deepEqual(calls[2], {
+  assert.deepEqual(calls[1], {
     method: 'crm.item.update',
     payload: { entityTypeId: 1052, id: 8622, fields: { stageId: 'DT1052_31:SUCCESS' } },
+  });
+});
+
+test('driver delivery reset clears the receipt and returns the deal to Передан на сборку', async () => {
+  const client = new BitrixClient('https://example.test');
+  const calls = [];
+  client.call = async (method, payload) => {
+    calls.push({ method, payload });
+    if (method === 'crm.status.list') return [{ NAME: 'Передан на сборку', STATUS_ID: 'DT1052_31:PREPARATION' }];
+    return {};
+  };
+
+  await client.resetDriverDelivery('1231313');
+
+  assert.deepEqual(calls[1], {
+    method: 'crm.item.update',
+    payload: {
+      entityTypeId: 1052,
+      id: 1231313,
+      fields: { stageId: 'DT1052_31:PREPARATION', ufCrm19ExpeditorReceipt: [] },
+    },
   });
 });
 

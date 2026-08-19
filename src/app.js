@@ -64,6 +64,7 @@ class Application {
       if (url.pathname === '/api/admin/telegram/select' && req.method === 'POST') return await this.#adminTelegramSelect(req, res);
       if (url.pathname === '/api/admin/telegram/expeditor/select' && req.method === 'POST') return await this.#adminTelegramExpeditorSelect(req, res);
       if (url.pathname === '/api/admin/bitrix/ensure-delivery-fields' && req.method === 'POST') return await this.#adminEnsureDeliveryFields(req, res);
+      if (url.pathname === '/api/admin/driver/reset' && req.method === 'POST') return await this.#adminResetDriverDelivery(req, res);
       if (url.pathname.startsWith('/api/bitrix/') && req.method === 'POST') return await this.#proxyBitrix(req, res, url.pathname.slice('/api/bitrix/'.length));
       if (url.pathname === '/receiving') { res.writeHead(308, { Location: '/receiving/' }); return res.end(); }
       if (url.pathname === '/receiving-test') { res.writeHead(308, { Location: '/receiving-test/' }); return res.end(); }
@@ -154,7 +155,7 @@ class Application {
     if (row.orderNumber && this.bitrix.configured) {
       const result = await this.bitrix.findItemByOrderNumber(row.orderNumber);
       bitrixItemId = String((result.item || result).id || '');
-      await this.bitrix.completeDriverDelivery({ orderId: bitrixItemId, driverName: user.name, delivery: row.delivery, file });
+      await this.bitrix.completeDriverDelivery({ orderId: bitrixItemId, file });
     }
     if (file && this.telegramExpeditor.configured) {
       const caption = [
@@ -375,6 +376,22 @@ class Application {
         detail: String(error.message || error).replace(/https?:\/\/\S+/gi, '[hidden]').slice(0, 500),
       });
     }
+  }
+
+  async #adminResetDriverDelivery(req, res) {
+    if (!this.#admin(req, res)) return;
+    const orderNumber = String((await readJson(req)).orderNumber || '').trim();
+    if (!orderNumber) return sendJson(res, 400, { error: 'ORDER_NUMBER_REQUIRED' });
+    const completed = this.driverDeliveries.listAll().find(item => String(item.order?.orderNumber || '').trim() === orderNumber);
+    if (!completed) return sendJson(res, 404, { error: 'DRIVER_DELIVERY_NOT_FOUND' });
+    let bitrixId = String(completed.bitrixId || '');
+    if (!bitrixId && this.bitrix.configured) {
+      const result = await this.bitrix.findItemByOrderNumber(orderNumber);
+      bitrixId = String((result.item || result).id || '');
+    }
+    if (bitrixId) await this.bitrix.resetDriverDelivery(bitrixId);
+    await this.driverDeliveries.reset(completed.login, completed.orderId);
+    sendJson(res, 200, { ok: true, orderNumber, orderId: completed.orderId });
   }
 
   async #proxyBitrix(req, res, method) {
