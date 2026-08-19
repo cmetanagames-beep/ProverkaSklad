@@ -63,6 +63,7 @@ class Application {
       if (url.pathname === '/api/admin/telegram/chats' && req.method === 'GET') return await this.#adminTelegramChats(req, res);
       if (url.pathname === '/api/admin/telegram/select' && req.method === 'POST') return await this.#adminTelegramSelect(req, res);
       if (url.pathname === '/api/admin/telegram/expeditor/select' && req.method === 'POST') return await this.#adminTelegramExpeditorSelect(req, res);
+      if (url.pathname === '/api/admin/bitrix/ensure-delivery-fields' && req.method === 'POST') return await this.#adminEnsureDeliveryFields(req, res);
       if (url.pathname.startsWith('/api/bitrix/') && req.method === 'POST') return await this.#proxyBitrix(req, res, url.pathname.slice('/api/bitrix/'.length));
       if (url.pathname === '/receiving') { res.writeHead(308, { Location: '/receiving/' }); return res.end(); }
       if (url.pathname === '/receiving-test') { res.writeHead(308, { Location: '/receiving-test/' }); return res.end(); }
@@ -362,6 +363,11 @@ class Application {
     const { chatId } = await readJson(req);
     await this.telegramExpeditor.selectChat(chatId);
     sendJson(res, 200, { ok: true });
+  }
+
+  async #adminEnsureDeliveryFields(req, res) {
+    if (!this.#admin(req, res)) return;
+    sendJson(res, 200, await this.bitrix.ensureDeliveryFields());
   }
 
   async #proxyBitrix(req, res, method) {

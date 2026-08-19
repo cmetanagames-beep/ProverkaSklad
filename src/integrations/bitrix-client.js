@@ -117,7 +117,17 @@ class BitrixClient {
     const fields = { ENTITY_ID: Number(orderId), ENTITY_TYPE: 'dynamic_1052', COMMENT: comment };
     if (file) fields.FILES = [[file.filename, file.buffer.toString('base64')]];
     await this.call('crm.timeline.comment.add', { fields });
-    const photoField = process.env.BITRIX_EXPEDITOR_PHOTO_FIELD;
+    let photoField = process.env.BITRIX_EXPEDITOR_PHOTO_FIELD;
+    if (file && !photoField) {
+      const definitionsResult = await this.getItemFields();
+      const definitions = definitionsResult.fields || definitionsResult;
+      photoField = Object.entries(definitions).find(
+        ([, definition]) =>
+          String(definition.title || definition.formLabel || '')
+            .trim()
+            .toLocaleLowerCase('ru') === 'фото экспедиторской расписки'
+      )?.[0];
+    }
     if (file && photoField)
       await this.call('crm.item.update', {
         entityTypeId: 1052,
@@ -125,6 +135,110 @@ class BitrixClient {
         fields: { [photoField]: [[file.filename, file.buffer.toString('base64')]] },
       });
     await this.moveToDriverShipped(orderId);
+  }
+
+  async ensureDeliveryFields() {
+    const typeResult = await this.call('crm.type.getByEntityTypeId', { entityTypeId: 1052 });
+    const type = typeResult.type || typeResult;
+    if (!type?.id) throw new Error('BITRIX_SMART_PROCESS_NOT_FOUND: 1052');
+    const entityId = `CRM_${type.id}`;
+    const listResult = await this.call('userfieldconfig.list', {
+      moduleId: 'crm',
+      filter: { entityId },
+    });
+    const fields = Array.isArray(listResult) ? listResult : listResult.fields || [];
+    const ensureField = async ({ title, postfix, userTypeId, multiple }) => {
+      let field = fields.find(
+        (item) =>
+          String(item.editFormLabel?.ru || item.listColumnLabel?.ru || '')
+            .trim()
+            .toLocaleLowerCase('ru') === title.toLocaleLowerCase('ru')
+      );
+      let created = false;
+      if (field) return { field, created };
+      const added = await this.call('userfieldconfig.add', {
+        moduleId: 'crm',
+        field: {
+          entityId,
+          fieldName: `UF_CRM_${type.id}_${postfix}`,
+          userTypeId,
+          multiple,
+          mandatory: 'N',
+          showInList: 'Y',
+          editInList: 'Y',
+          editFormLabel: { ru: title },
+          listColumnLabel: { ru: title },
+          listFilterLabel: { ru: title },
+        },
+      });
+      field = added.field || added;
+      created = true;
+      fields.push(field);
+      return { field, created };
+    };
+    const photo = await ensureField({
+      title: 'Фото экспедиторской расписки',
+      postfix: 'EXPEDITOR_RECEIPT',
+      userTypeId: 'file',
+      multiple: 'Y',
+    });
+    const company = await ensureField({
+      title: 'Название транспортной компании',
+      postfix: 'DELIVERY_COMPANY_NAME',
+      userTypeId: 'string',
+      multiple: 'N',
+    });
+    this.itemFields = null;
+    const itemFieldsResult = await this.getItemFields();
+    const itemFields = itemFieldsResult.fields || itemFieldsResult;
+    const codeByTitle = (title) =>
+      Object.entries(itemFields).find(
+        ([, definition]) =>
+          String(definition.title || definition.formLabel || '')
+            .trim()
+            .toLocaleLowerCase('ru') === title.toLocaleLowerCase('ru')
+      )?.[0];
+    const photoCode = codeByTitle('Фото экспедиторской расписки');
+    const companyCode = codeByTitle('Название транспортной компании');
+    const trackCode = codeByTitle('Трек номер');
+    const termsCode = codeByTitle('Условия доставки');
+    if (!photoCode || !companyCode || !trackCode || !termsCode) throw new Error('BITRIX_DELIVERY_FIELD_CODE_NOT_FOUND');
+
+    const extras = { categoryId: 31 };
+    const configuration = await this.call('crm.item.details.configuration.get', {
+      entityTypeId: 1052,
+      scope: 'C',
+      extras,
+    });
+    if (!Array.isArray(configuration)) throw new Error('BITRIX_COMMON_CARD_CONFIGURATION_NOT_FOUND');
+    const targetCodes = new Set([photoCode, companyCode]);
+    const data = configuration.map((section) => ({
+      ...section,
+      elements: (section.elements || []).filter((element) => !targetCodes.has(element.name)),
+    }));
+    const insertAfter = (anchor, fieldCode) => {
+      for (const section of data) {
+        const index = section.elements.findIndex((element) => element.name === anchor);
+        if (index < 0) continue;
+        section.elements.splice(index + 1, 0, { name: fieldCode, optionFlags: 0 });
+        return true;
+      }
+      return false;
+    };
+    if (!insertAfter(trackCode, photoCode) || !insertAfter(termsCode, companyCode))
+      throw new Error('BITRIX_CARD_ANCHOR_NOT_FOUND');
+    await this.call('crm.item.details.configuration.set', {
+      entityTypeId: 1052,
+      scope: 'C',
+      extras,
+      data,
+    });
+    return {
+      entityId,
+      photo: { created: photo.created, fieldId: String(photo.field.id || ''), fieldCode: photoCode },
+      company: { created: company.created, fieldId: String(company.field.id || ''), fieldCode: companyCode },
+      layoutUpdated: true,
+    };
   }
 
   async moveToDriverShipped(orderId) {
