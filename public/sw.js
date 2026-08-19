@@ -1,8 +1,8 @@
-const CACHE = 'akfix-shell-v14';
+const CACHE = 'akfix-shell-v15';
 const ASSETS = [
   '/', '/index.html', '/assets/styles.css', '/assets/strict-ui.css', '/assets/nav-fix.css', '/assets/app.js', '/assets/offline.js',
   '/assets/role-router.js', '/assets/logo.svg', '/assets/app-loading.css', '/assets/app-loading.js', '/manifest.webmanifest',
-  '/driver/', '/driver/index.html', '/driver/driver.css', '/driver/driver-fix.css', '/driver/driver.js?v=14',
+  '/driver/', '/driver/index.html', '/driver/driver.css', '/driver/driver-fix.css', '/driver/driver.js?v=15',
   '/logist/', '/logist/index.html', '/logist/logist.css', '/logist/logist.js',
   '/admin.html', '/assets/admin.css', '/assets/admin-users.css', '/assets/admin-strict.css', '/assets/admin.js',
   '/receiving/styles.css', '/receiving/scanner.css', '/receiving/app.js', '/receiving/exceljs.min.js',

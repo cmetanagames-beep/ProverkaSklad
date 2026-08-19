@@ -36,7 +36,24 @@ test.before(async () => {
   const users = [
     { login: 'receiver', pin: '1111', name: 'Приёмщик', warehouse: 'Балашиха', role: 'employee' },
     { login: 'driver', pin: '2222', name: 'Водитель', warehouse: '', role: 'driver' },
+    { login: 'otherdriver', pin: '3333', name: 'Другой водитель', warehouse: '', role: 'driver' },
   ];
+  const photoDir = path.join(tempDir, 'driver-photos');
+  const photoId = '11111111-1111-4111-8111-111111111111.jpg';
+  await fs.mkdir(photoDir, { recursive: true });
+  await fs.writeFile(path.join(photoDir, photoId), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+  await fs.writeFile(
+    path.join(tempDir, 'deliveries.json'),
+    JSON.stringify({
+      'driver:history-1': {
+        login: 'driver',
+        orderId: 'history-1',
+        order: { orderNumber: '1231313', date: '19.08.2026' },
+        completedAt: '2026-08-19T10:00:00.000Z',
+        photo: { id: photoId, mime: 'image/jpeg', filename: 'receipt.jpg' },
+      },
+    })
+  );
   child = spawn(process.execPath, ['server.js'], {
     cwd: ROOT,
     env: {
@@ -50,7 +67,8 @@ test.before(async () => {
       CHECK_STORAGE_DIR: path.join(tempDir, 'checks'),
       PENDING_STORAGE_FILE: path.join(tempDir, 'pending.json'),
       HISTORY_STORAGE_FILE: path.join(tempDir, 'history.json'),
-      DRIVER_DELIVERY_STORAGE_FILE: path.join(tempDir, 'deliveries.json'),
+      DRIVER_STORAGE_FILE: path.join(tempDir, 'deliveries.json'),
+      DRIVER_PHOTO_DIR: photoDir,
     },
     stdio: 'ignore',
   });
@@ -145,6 +163,32 @@ test('role APIs reject the wrong user and validate driver dates', async () => {
   );
 });
 
+test('driver can view and download only a photo from their own history', async () => {
+  const driverCookie = await login('driver', '2222');
+  const ownPhoto = await fetch(`${BASE}/api/driver/photo/11111111-1111-4111-8111-111111111111.jpg`, {
+    headers: { Cookie: driverCookie },
+  });
+  assert.equal(ownPhoto.status, 200);
+  assert.equal(ownPhoto.headers.get('content-type'), 'image/jpeg');
+
+  const download = await fetch(
+    `${BASE}/api/driver/photo/11111111-1111-4111-8111-111111111111.jpg?download=1`,
+    { headers: { Cookie: driverCookie } }
+  );
+  assert.equal(download.status, 200);
+  assert.match(download.headers.get('content-disposition'), /attachment; filename="expeditor-1231313\.jpg"/);
+
+  const otherCookie = await login('otherdriver', '3333');
+  assert.equal(
+    (
+      await fetch(`${BASE}/api/driver/photo/11111111-1111-4111-8111-111111111111.jpg`, {
+        headers: { Cookie: otherCookie },
+      })
+    ).status,
+    404
+  );
+});
+
 test('security headers and distinct offline navigation routes are present', async () => {
   const response = await fetch(`${BASE}/health`);
   assert.match(response.headers.get('content-security-policy'), /frame-ancestors 'none'/);
@@ -174,7 +218,7 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   const serverAppJs = await fs.readFile(path.join(ROOT, 'src', 'app.js'), 'utf8');
   assert.match(driverHtml, /data-filter="tomorrow">Завтра</);
   assert.match(driverHtml, /src="\/assets\/logo\.svg" alt="AKFIX"/);
-  assert.match(driverHtml, /driver\.js\?v=14/);
+  assert.match(driverHtml, /driver\.js\?v=15/);
   assert.match(driverJs, /async function complete[\s\S]*await markQueued\(order, photo\)/);
   assert.match(driverJs, /Принято\. Отправляем в фоне — можно продолжать работу\./);
   assert.match(driverJs, /if \(navigator\.onLine\) \{\s*syncQueue\(\);\s*return;/);
@@ -182,6 +226,7 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   assert.match(serverAppJs, /telegramSentAt: new Date\(\)\.toISOString\(\)/);
   assert.match(driverJs, /registration\.sync\?\.register/);
   assert.match(driverJs, /serviceWorker\.addEventListener\('controllerchange'/);
+  assert.match(driverJs, /Скачать фотографию/);
   const sw = await fs.readFile(path.join(ROOT, 'public', 'sw.js'), 'utf8');
   assert.match(sw, /form\.set\('date', match \?/);
 });
