@@ -36,6 +36,8 @@ test('driver completion adds the receipt and moves the deal to Груз отпр
   const calls = [];
   client.call = async (method, payload) => {
     calls.push({ method, payload });
+    if (method === 'crm.item.fields')
+      return { fields: { ufCrm19ExpeditorReceipt: { title: 'Фото экспедиторской расписки' } } };
     return {};
   };
 
@@ -49,7 +51,70 @@ test('driver completion adds the receipt and moves the deal to Груз отпр
   assert.equal(calls[0].method, 'crm.timeline.comment.add');
   assert.deepEqual(calls[0].payload.fields.FILES, [['receipt.jpg', Buffer.from('photo').toString('base64')]]);
   assert.deepEqual(calls[1], {
+    method: 'crm.item.fields',
+    payload: { entityTypeId: 1052 },
+  });
+  assert.deepEqual(calls[2], {
+    method: 'crm.item.update',
+    payload: {
+      entityTypeId: 1052,
+      id: 8622,
+      fields: {
+        ufCrm19ExpeditorReceipt: [['receipt.jpg', Buffer.from('photo').toString('base64')]],
+      },
+    },
+  });
+  assert.deepEqual(calls[3], {
     method: 'crm.item.update',
     payload: { entityTypeId: 1052, id: 8622, fields: { stageId: 'DT1052_31:SUCCESS' } },
   });
+});
+
+test('creates delivery fields and places them after the requested anchors', async () => {
+  const client = new BitrixClient('https://example.test');
+  const calls = [];
+  client.call = async (method, payload) => {
+    calls.push({ method, payload });
+    if (method === 'crm.type.getByEntityTypeId') return { type: { id: 19, entityTypeId: 1052 } };
+    if (method === 'userfieldconfig.list') return { fields: [] };
+    if (method === 'userfieldconfig.add') return { field: { id: payload.field.userTypeId === 'file' ? 7001 : 7002 } };
+    if (method === 'crm.item.fields')
+      return {
+        fields: {
+          ufTrack: { title: 'Трек номер' },
+          ufCrm19ExpeditorReceipt: { title: 'Фото экспедиторской расписки' },
+          ufTerms: { title: 'Условия доставки' },
+          ufCrm19DeliveryCompanyName: { title: 'Название транспортной компании' },
+        },
+      };
+    if (method === 'crm.item.details.configuration.get')
+      return [
+        { name: 'warehouse', title: 'Склад', type: 'section', elements: [{ name: 'ufTrack' }] },
+        { name: 'delivery', title: 'Доставка', type: 'section', elements: [{ name: 'ufTerms' }] },
+      ];
+    if (method === 'crm.item.details.configuration.set') return true;
+    throw new Error(`Unexpected method: ${method}`);
+  };
+
+  const result = await client.ensureDeliveryFields();
+
+  assert.deepEqual(result, {
+    entityId: 'CRM_19',
+    photo: { created: true, fieldId: '7001', fieldCode: 'ufCrm19ExpeditorReceipt' },
+    company: { created: true, fieldId: '7002', fieldCode: 'ufCrm19DeliveryCompanyName' },
+    layoutUpdated: true,
+  });
+  assert.equal(calls[2].method, 'userfieldconfig.add');
+  assert.equal(calls[2].payload.field.userTypeId, 'file');
+  assert.equal(calls[2].payload.field.multiple, 'Y');
+  assert.equal(calls[3].payload.field.userTypeId, 'string');
+  const layoutCall = calls.find((call) => call.method === 'crm.item.details.configuration.set');
+  assert.deepEqual(
+    layoutCall.payload.data[0].elements.map((element) => element.name),
+    ['ufTrack', 'ufCrm19ExpeditorReceipt']
+  );
+  assert.deepEqual(
+    layoutCall.payload.data[1].elements.map((element) => element.name),
+    ['ufTerms', 'ufCrm19DeliveryCompanyName']
+  );
 });
