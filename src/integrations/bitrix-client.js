@@ -240,7 +240,7 @@ class BitrixClient {
       for (const section of data) {
         const index = section.elements.findIndex((element) => element.name === anchor);
         if (index < 0) continue;
-        section.elements.splice(index + 1, 0, { name: fieldCode, optionFlags: 0 });
+        section.elements.splice(index + 1, 0, { name: fieldCode, optionFlags: 1 });
         return true;
       }
       return false;
