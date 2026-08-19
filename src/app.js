@@ -21,6 +21,7 @@ class Application {
     this.telegramExpeditor = telegramExpeditor;
     this.receiving = receiving;
     this.orderLocks = new Map();
+    this.driverTelegramLocks = new Map();
     this.version = process.env.APP_VERSION || `${Date.now()}`;
   }
 
@@ -163,20 +164,56 @@ class Application {
       await this.bitrix.completeDriverDelivery({ orderId: bitrixItemId, file });
     }
     const photo = existing?.photo || await this.driverDeliveries.savePhoto(file);
-    let completed = existing || await this.driverDeliveries.complete({ login: user.login, driverName: user.name, orderId: row.id, bitrixId: bitrixItemId, order: row, completedAt: new Date().toISOString(), hasPhoto: Boolean(file), photo });
-    if (file && this.telegramExpeditor.configured) {
-      const caption = [
-        'ЭКСПЕДИТОРСКАЯ РАСПИСКА',
-        `Заказ: ${row.orderNumber || '—'}`,
-        `Клиент: ${row.client || '—'}`,
-        `Водитель: ${user.name}`,
-        `Доставка: ${row.delivery || '—'}`,
-        `Дата: ${row.date || new Date().toLocaleDateString('ru-RU')}`,
-      ].join('\n');
-      await this.telegramExpeditor.sendCheck(caption, [file]);
-      completed = await this.driverDeliveries.complete({ ...completed, telegramSentAt: new Date().toISOString() });
+    let completed = existing || await this.driverDeliveries.complete({ login: user.login, driverName: user.name, orderId: row.id, bitrixId: bitrixItemId, order: row, completedAt: new Date().toISOString(), bitrixCompletedAt: bitrixItemId ? new Date().toISOString() : null, hasPhoto: Boolean(file), photo, telegramPending: Boolean(file) });
+    if (file && !completed.telegramSentAt) {
+      if (!completed.telegramPending) completed = await this.driverDeliveries.complete({ ...completed, telegramPending: true });
+      completed = await this.#sendDriverTelegram(completed, file, true);
     }
     sendJson(res, 200, { ok: true, completed });
+  }
+
+  async retryPendingDriverDeliveries() {
+    const now = Date.now();
+    const pending = this.driverDeliveries.listAll().filter(item => item.telegramPending && !item.telegramSentAt && (!item.telegramNextRetryAt || Date.parse(item.telegramNextRetryAt) <= now));
+    for (const item of pending) await this.#sendDriverTelegram(item, null, false);
+    return pending.length;
+  }
+
+  async #sendDriverTelegram(item, suppliedFile, force) {
+    const key = `${item.login}:${item.orderId}`;
+    if (this.driverTelegramLocks.has(key)) return this.driverTelegramLocks.get(key);
+    const task = (async () => {
+      let current = this.driverDeliveries.get(item.login, item.orderId) || item;
+      if (current.telegramSentAt || !current.telegramPending) return current;
+      if (!force && current.telegramNextRetryAt && Date.parse(current.telegramNextRetryAt) > Date.now()) return current;
+      try {
+        if (!this.telegramExpeditor.configured) throw new Error('TELEGRAM_NOT_CONFIGURED');
+        let file = suppliedFile;
+        if (!file && current.photo?.id) {
+          const buffer = await this.driverDeliveries.photo(current.photo.id);
+          if (buffer) file = { buffer, mime: current.photo.mime || 'image/jpeg', filename: current.photo.filename || 'expeditor.jpg' };
+        }
+        if (!file) throw new Error('EXPEDITOR_PHOTO_NOT_FOUND');
+        const order = current.order || {};
+        const caption = [
+          'ЭКСПЕДИТОРСКАЯ РАСПИСКА',
+          `Заказ: ${order.orderNumber || '—'}`,
+          `Клиент: ${order.client || '—'}`,
+          `Водитель: ${current.driverName || '—'}`,
+          `Доставка: ${order.delivery || '—'}`,
+          `Дата: ${order.date || new Date().toLocaleDateString('ru-RU')}`,
+        ].join('\n');
+        await this.telegramExpeditor.sendCheck(caption, [file]);
+        current = await this.driverDeliveries.complete({ ...current, telegramPending: false, telegramSentAt: new Date().toISOString(), telegramLastError: '', telegramNextRetryAt: null });
+      } catch (error) {
+        const attempts = Number(current.telegramAttempts || 0) + 1;
+        const delay = Math.min(15 * 60 * 1000, 30 * 1000 * (2 ** Math.min(attempts - 1, 5)));
+        current = await this.driverDeliveries.complete({ ...current, telegramPending: true, telegramAttempts: attempts, telegramLastError: String(error.message || 'TELEGRAM_UPLOAD_FAILED').slice(0, 300), telegramNextRetryAt: new Date(Date.now() + delay).toISOString() });
+      }
+      return current;
+    })().finally(() => this.driverTelegramLocks.delete(key));
+    this.driverTelegramLocks.set(key, task);
+    return task;
   }
 
   async #driverPhoto(req, res, id, url) {
