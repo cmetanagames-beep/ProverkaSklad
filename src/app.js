@@ -36,6 +36,7 @@ class Application {
       if (url.pathname === '/api/driver/history' && req.method === 'GET') return await this.#driverHistory(req, res, url);
       if (url.pathname === '/api/driver/order' && req.method === 'GET') return await this.#driverOrder(req, res, url);
       if (url.pathname === '/api/driver/complete' && req.method === 'POST') return await this.#driverComplete(req, res);
+      if (url.pathname.startsWith('/api/driver/photo/') && req.method === 'GET') return await this.#driverPhoto(req, res, url.pathname.slice('/api/driver/photo/'.length), url);
       if (url.pathname === '/api/logist/orders' && req.method === 'GET') return await this.#logistOrders(req, res);
       if (url.pathname === '/api/logist/drivers' && req.method === 'GET') return await this.#logistDrivers(req, res);
       if (url.pathname === '/api/logist/order' && req.method === 'GET') return await this.#logistOrder(req, res, url);
@@ -176,6 +177,21 @@ class Application {
       completed = await this.driverDeliveries.complete({ ...completed, telegramSentAt: new Date().toISOString() });
     }
     sendJson(res, 200, { ok: true, completed });
+  }
+
+  async #driverPhoto(req, res, id, url) {
+    const user = this.#driver(req, res); if (!user) return;
+    const item = this.driverDeliveries.list(user.login).find(entry => entry.photo?.id === id);
+    if (!item) return sendJson(res, 404, { error: 'PHOTO_NOT_FOUND' });
+    const data = await this.driverDeliveries.photo(id);
+    if (!data) return sendJson(res, 404, { error: 'PHOTO_NOT_FOUND' });
+    const headers = { 'Content-Type': item.photo.mime, 'Cache-Control': 'private, max-age=3600' };
+    if (url.searchParams.get('download') === '1') {
+      const extension = path.extname(id).toLowerCase() || '.jpg';
+      const number = String(item.order?.orderNumber || 'receipt').replace(/[^a-zA-Z0-9_-]/g, '') || 'receipt';
+      headers['Content-Disposition'] = `attachment; filename="expeditor-${number}${extension}"`;
+    }
+    res.writeHead(200, headers); res.end(data);
   }
 
   async #logistOrders(req, res) {
