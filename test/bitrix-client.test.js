@@ -8,7 +8,10 @@ test('finds a Bitrix item by the exact account number field', async () => {
   client.call = async (method, payload) => {
     calls.push({ method, payload });
     if (method === 'crm.item.fields') return { fields: { ufOrder: { title: 'Номер счета' } } };
-    if (method === 'crm.item.list') return { items: [{ id: 8622, title: 'Клиент', ufOrder: 'АФУТ-003424' }] };
+    if (method === 'crm.item.list') {
+      if (payload.filter.ufOrder === '3424') return { items: [] };
+      return { items: [{ id: 8622, title: 'Клиент', ufOrder: 'АФУТ-003424' }] };
+    }
     if (method === 'crm.item.get') return { item: { id: 8622, title: 'Клиент' } };
     throw new Error(`Unexpected method: ${method}`);
   };
@@ -16,8 +19,28 @@ test('finds a Bitrix item by the exact account number field', async () => {
   const result = await client.findItemByOrderNumber('3424');
 
   assert.equal(result.item.id, 8622);
-  assert.deepEqual(calls[1].payload.filter, { ufOrder: 'АФУТ-003424' });
-  assert.equal(calls[2].payload.id, 8622);
+  assert.deepEqual(calls[1].payload.filter, { ufOrder: '3424' });
+  assert.deepEqual(calls[2].payload.filter, { ufOrder: 'АФУТ-003424' });
+  assert.equal(calls[3].payload.id, 8622);
+});
+
+test('finds a Bitrix item whose account number is stored without the АФУТ prefix', async () => {
+  const client = new BitrixClient('https://example.test');
+  const calls = [];
+  client.call = async (method, payload) => {
+    calls.push({ method, payload });
+    if (method === 'crm.item.fields') return { fields: { ufOrder: { title: 'Номер счета' } } };
+    if (method === 'crm.item.list')
+      return { items: [{ id: 1231313, title: '(А) 1231313 Тестовая компания 4', ufOrder: '1231313' }] };
+    if (method === 'crm.item.get') return { item: { id: 1231313, title: '(А) 1231313 Тестовая компания 4' } };
+    throw new Error(`Unexpected method: ${method}`);
+  };
+
+  const result = await client.findItemByOrderNumber('1231313');
+
+  assert.equal(result.item.id, 1231313);
+  assert.deepEqual(calls[1].payload.filter, { ufOrder: '1231313' });
+  assert.equal(calls.filter((call) => call.method === 'crm.item.list').length, 1);
 });
 
 test('does not accept a different account number returned by Bitrix', async () => {
