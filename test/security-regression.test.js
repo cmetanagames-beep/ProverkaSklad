@@ -171,10 +171,14 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   }
   const driverHtml = await fs.readFile(path.join(ROOT, 'public', 'driver', 'index.html'), 'utf8');
   const driverJs = await fs.readFile(path.join(ROOT, 'public', 'driver', 'driver.js'), 'utf8');
+  const serverAppJs = await fs.readFile(path.join(ROOT, 'src', 'app.js'), 'utf8');
   assert.match(driverHtml, /data-filter="tomorrow">Завтра</);
   assert.match(driverHtml, /src="\/assets\/logo\.svg" alt="AKFIX"/);
   assert.match(driverJs, /async function complete[\s\S]*await markQueued\(order, photo\)/);
-  assert.match(driverJs, /Принято\. Отправляем в фоне — можно закрыть приложение\./);
+  assert.match(driverJs, /Принято\. Отправляем в фоне — можно продолжать работу\./);
+  assert.match(driverJs, /if \(navigator\.onLine\) \{\s*syncQueue\(\);\s*return;/);
+  assert.match(serverAppJs, /const existing = this\.driverDeliveries\.get\(user\.login, row\.id\)/);
+  assert.match(serverAppJs, /telegramSentAt: new Date\(\)\.toISOString\(\)/);
   assert.match(driverJs, /registration\.sync\?\.register/);
 });
 

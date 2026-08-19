@@ -151,12 +151,18 @@ class Application {
     const needsPhoto = /^тк(?:\s|$)/i.test(row.delivery);
     const file = payload.files.find(item => item.name === 'expeditorPhoto') || payload.files[0];
     if (needsPhoto && !file) return sendJson(res, 400, { error: 'EXPEDITOR_PHOTO_REQUIRED' });
+    const existing = this.driverDeliveries.get(user.login, row.id);
+    if (existing?.telegramSentAt) return sendJson(res, 200, { ok: true, completed: existing });
     let bitrixItemId = '';
-    if (row.orderNumber && this.bitrix.configured) {
+    if (existing) {
+      bitrixItemId = String(existing.bitrixId || '');
+    } else if (row.orderNumber && this.bitrix.configured) {
       const result = await this.bitrix.findItemByOrderNumber(row.orderNumber);
       bitrixItemId = String((result.item || result).id || '');
       await this.bitrix.completeDriverDelivery({ orderId: bitrixItemId, file });
     }
+    const photo = existing?.photo || await this.driverDeliveries.savePhoto(file);
+    let completed = existing || await this.driverDeliveries.complete({ login: user.login, driverName: user.name, orderId: row.id, bitrixId: bitrixItemId, order: row, completedAt: new Date().toISOString(), hasPhoto: Boolean(file), photo });
     if (file && this.telegramExpeditor.configured) {
       const caption = [
         'ЭКСПЕДИТОРСКАЯ РАСПИСКА',
@@ -167,9 +173,8 @@ class Application {
         `Дата: ${row.date || new Date().toLocaleDateString('ru-RU')}`,
       ].join('\n');
       await this.telegramExpeditor.sendCheck(caption, [file]);
+      completed = await this.driverDeliveries.complete({ ...completed, telegramSentAt: new Date().toISOString() });
     }
-    const photo = await this.driverDeliveries.savePhoto(file);
-    const completed = await this.driverDeliveries.complete({ login: user.login, driverName: user.name, orderId: row.id, bitrixId: bitrixItemId, order: row, completedAt: new Date().toISOString(), hasPhoto: Boolean(file), photo });
     sendJson(res, 200, { ok: true, completed });
   }
 
