@@ -6,6 +6,7 @@ const legacyFiles = new Set([
   'src/app.js',
   'src/uploads/driver-delivery-store.js',
   'public/assets/app.js',
+  'public/assets/admin.js',
   'public/sw.js',
   'receiving-test/app.js',
   'test/security-regression.test.js',
