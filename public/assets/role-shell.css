@@ -1,0 +1,16 @@
+:root{--app-shell:1240px;--app-surface:#fff;--app-canvas:#eef0f2;--app-line:#e2e2e5;--app-red:#cf0a2c}
+body.admin-app,body.logist-app{background:var(--app-canvas)}
+body.admin-app .shell,body.logist-app main#app{width:min(var(--app-shell),calc(100% - 40px));max-width:var(--app-shell);margin:20px auto 48px;background:var(--app-surface);border:1px solid var(--app-line);min-height:calc(100dvh - 40px)}
+body.admin-app #adminView:not(.hidden){display:grid;grid-template-columns:220px minmax(0,1fr);column-gap:32px}
+body.admin-app #adminView>header{grid-column:1/-1;position:sticky;top:0;z-index:10;margin:0;border-width:0 0 1px;background:rgba(255,255,255,.96);backdrop-filter:blur(14px)}
+body.admin-app .admin-tabs{grid-column:1;display:flex;flex-direction:column;align-self:start;position:sticky;top:106px;margin:24px 0 0;padding:0 12px;border:0}
+body.admin-app .admin-tabs button{width:100%;text-align:left;border:0;border-left:3px solid transparent;padding:13px 15px}
+body.admin-app .admin-tabs button.active{border-left-color:var(--app-red);border-bottom-color:transparent;background:#fff4f6}
+body.admin-app #ordersPanel,body.admin-app #employeesPanel,body.admin-app #telegramPanel{grid-column:2;padding:0 28px 48px 0;min-width:0}
+body.admin-app .hero{padding-top:34px}
+body.logist-app header{padding-inline:28px;background:rgba(255,255,255,.96);backdrop-filter:blur(14px)}
+body.logist-app .page{padding-inline:36px}
+body.logist-app .order{transition:background .16s ease,transform .16s ease}
+body.logist-app .order:active{transform:scale(.995)}
+@media(max-width:820px){body.admin-app .shell,body.logist-app main#app{width:100%;margin:0;border:0;min-height:100dvh}body.admin-app #adminView:not(.hidden){display:block}body.admin-app .admin-tabs{position:sticky;top:82px;z-index:8;display:flex;flex-direction:row;overflow-x:auto;margin:0;padding:0 14px;background:#fff;border-bottom:1px solid var(--app-line)}body.admin-app .admin-tabs button{width:auto;white-space:nowrap;border-left:0;border-bottom:3px solid transparent}body.admin-app .admin-tabs button.active{border-bottom-color:var(--app-red)}body.admin-app #ordersPanel,body.admin-app #employeesPanel,body.admin-app #telegramPanel{padding:0 18px 80px}body.logist-app .page{padding-inline:18px}}
+@media(prefers-reduced-motion:reduce){body.logist-app .order{transition:none}}

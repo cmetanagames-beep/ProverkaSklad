@@ -121,6 +121,12 @@ function orderRows(rows) {
   );
   if (focus) list.querySelector(`[data-order="${focus}"]`)?.focus();
 }
+function renderOrdersLoading() {
+  q('#orders').innerHTML = Array.from(
+    { length: 3 },
+    () => '<div class="order-skeleton" aria-hidden="true"><i></i><span><b></b><small></small><em></em></span></div>'
+  ).join('');
+}
 async function openOrder(id) {
   try {
     const response = await fetch('/api/order-locks/acquire', {
@@ -217,7 +223,8 @@ async function loadOrders() {
     try {
       app.orders = JSON.parse(localStorage.getItem(cacheKey) || '[]');
     } catch {}
-    orderRows(app.orders);
+    if (app.orders.length) orderRows(app.orders);
+    else renderOrdersLoading();
   }
   try {
     const [statusData, fieldsData] = await Promise.all([
@@ -584,12 +591,43 @@ function toast(t) {
   setTimeout(() => q('#toast').classList.remove('show'), 2300);
 }
 function wireHelp() {
-  qa('[data-help]').forEach((b) => (b.onclick = () => q('#helpModal').classList.add('show')));
+  const modal = q('#helpModal');
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-hidden', modal.classList.contains('show') ? 'false' : 'true');
+  modal.setAttribute('aria-label', 'Как работать');
+  q('#closeHelp').setAttribute('aria-label', 'Закрыть инструкцию');
+  qa('[data-help]').forEach((b) => (b.onclick = openHelp));
 }
-q('#closeHelp').onclick = q('#understood').onclick = () => q('#helpModal').classList.remove('show');
+let helpOpener = null;
+function openHelp(event) {
+  helpOpener = event?.currentTarget || document.activeElement;
+  const modal = q('#helpModal');
+  modal.classList.add('show');
+  modal.setAttribute('aria-hidden', 'false');
+  q('#closeHelp').focus();
+}
+function closeHelp() {
+  const modal = q('#helpModal');
+  modal.classList.remove('show');
+  modal.setAttribute('aria-hidden', 'true');
+  helpOpener?.focus?.();
+}
+q('#closeHelp').onclick = q('#understood').onclick = closeHelp;
 q('#helpModal').onclick = (e) => {
-  if (e.target === q('#helpModal')) q('#helpModal').classList.remove('show');
+  if (e.target === q('#helpModal')) closeHelp();
 };
+addEventListener('keydown', (event) => {
+  const modal = q('#helpModal');
+  if (!modal.classList.contains('show')) return;
+  if (event.key === 'Escape') closeHelp();
+  if (event.key !== 'Tab') return;
+  const focusable = [...modal.querySelectorAll('button:not([disabled]), a[href], input:not([disabled])')];
+  if (!focusable.length) return;
+  const first = focusable[0], last = focusable.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+});
 q('#closeCoach').onclick = () => q('#palletCoach').remove();
 q('#loginForm').onsubmit = async (e) => {
   e.preventDefault();
@@ -731,6 +769,7 @@ async function restoreSession() {
         startApp((await response.json()).user);
         return;
       }
+      if (response.status === 401) break;
     } catch {}
     if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 450 * (attempt + 1)));
   }
