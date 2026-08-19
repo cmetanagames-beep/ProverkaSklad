@@ -1,63 +1,748 @@
-const WEBHOOK='/api/bitrix/';
-  const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
-  const PALLET_PHOTO_COUNT=3;
-  const app={screen:'orders',order:null,user:{name:'—',warehouse:'—'},noCargo:false,euro:1,american:0,special:{b:false,p:false,photos:{}},pallets:[],current:null,orders:[],phase:'warehouse',pending:[],locks:[],activeLock:null};
-  let versionTimer;
-  function show(name){if(name==='orders'&&app.activeLock)releaseOrderLock();app.screen=name;qa('.screen').forEach(x=>x.classList.toggle('active',x.dataset.screen===name));q('#bottomNav').classList.toggle('visible',['orders','history'].includes(name));qa('[data-nav]').forEach(x=>x.classList.toggle('active',x.dataset.nav===name));renderTop(name);scrollTo(0,0)}
-  function orderNumber(title=''){return title.match(/АФУТ-\d+/i)?.[0]||title.slice(0,24)}
-  function displayOrderTitle(title=''){const numbers=title.match(/АФУТ-\d+/gi)||[];if(!numbers.length)return title;if(/добавк/i.test(title)&&numbers.length>1)return `${numbers[0]} добавка к ${numbers[1]}`;return numbers[0]}
-  function clientName(title=''){let value=title.replace(/^\s*\([А-ЯA-Z]\)\s*/i,'').replace(/АФУТ-\d+/i,'').trim();value=value.split(/\s+(?:собрать|добавка|вместе)\b/i)[0].trim();return value||'Клиент не указан'}
-  function renderTop(name){const top=q('#top');if(name==='orders'||name==='success'||name==='history'){top.innerHTML=`<img class="brand-logo header-logo" src="/assets/logo.svg" alt="AKFIX"><button class="head-user" data-help aria-label="Инструкция"><span>${app.user.name[0]}</span><b>${app.user.name}</b><i>⌄</i></button>`;wireHelp();return}const labels={special:'Наличие товара',setup:app.phase==='combined'?'Итог после объединения':'Склад и палеты',pallets:app.phase==='combined'?'Фото после объединения':'Палеты',capture:'Фото палеты'};top.innerHTML=`<button class="back" aria-label="Назад">‹</button><div class="top-title"><b>${labels[name]}</b><small>${orderNumber(app.order?.title)} · ${app.order?.stageName||'Заказ на проверку'}</small></div><button class="help-btn" data-help aria-label="Помощь">?</button>`;q('.back').onclick=()=>show({special:'orders',setup:app.phase==='combined'?'orders':'special',pallets:'setup',capture:'pallets'}[name]);wireHelp()}
-  function checkStatus(order){const row=app.pending.find(x=>String(x.orderId)===String(order.id));if(!row)return{label:'Не начат',kind:'not-started'};if(row.requiresCombined)return{label:'Нужен догруз',kind:'needs-combined'};if(row.mytishchiReady)return{label:'Мытищи готовы',kind:'myt-ready'};if(row.balashikhaReady)return{label:'Балашиха готова',kind:'bal-ready'};return{label:'Не начат',kind:'not-started'}}
-  function plannedBadge(value){if(!value)return'<span class="planned-date missing">Плановая отгрузка не указана</span>';const date=new Date(value),today=new Date();if(Number.isNaN(date.getTime()))return'<span class="planned-date missing">Плановая отгрузка не указана</span>';date.setHours(0,0,0,0);today.setHours(0,0,0,0);const days=Math.round((date-today)/86400000),label=days===0?'Сегодня':days===1?'Завтра':days===-1?'Вчера':date.toLocaleDateString('ru-RU',{day:'2-digit',month:'long'}),kind=days<0?'overdue':days===0?'today':days===1?'tomorrow':'future';return `<span class="planned-date ${kind}">Плановая отгрузка · ${label}</span>`}
-  function orderRows(rows){const list=q('#orders'),focus=document.activeElement?.dataset?.order;list.innerHTML=rows.length?rows.map(o=>{const status=checkStatus(o),lock=app.locks.find(x=>String(x.orderId)===String(o.id)&&x.warehouse===app.user.warehouse),busy=lock&&lock.employee!==app.user.name;return `<button class="order ${status.kind} ${busy?'is-busy':''}" data-order="${o.id}" ${busy?'aria-disabled="true"':''}><span class="order-icon">${busy?lock.employee.slice(0,1):'▤'}</span><span><b>${displayOrderTitle(o.title)}</b><small class="order-client">${clientName(o.title)}</small>${plannedBadge(o.plannedShipment)}${busy?`<span class="live-worker"><i></i>Проверяет ${lock.employee} · ${lock.warehouse}</span>`:`<span class="order-status">${status.label}</span>`}</span><span class="chev">${busy?'●':'›'}</span></button>`}).join(''):'<div class="empty">Заказы не найдены</div>';qa('[data-order]').forEach(b=>b.onclick=async()=>{if(b.classList.contains('is-busy'))return toast('Этот заказ уже проверяет другой сотрудник');b.classList.add('opening');await openOrder(b.dataset.order);b.classList.remove('opening')});if(focus)list.querySelector(`[data-order="${focus}"]`)?.focus()}
-  async function openOrder(id){try{const response=await fetch('/api/order-locks/acquire',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId:id})}),data=await response.json();if(response.status===409)return toast(`Заказ уже проверяет ${data.lock.employee}`);if(!response.ok)throw new Error();app.activeLock=String(id)}catch{return toast('Не удалось закрепить заказ. Попробуйте ещё раз.')}app.order=app.orders.find(o=>String(o.id)===String(id));app.phase='warehouse';try{const status=await fetch(`/api/check-status?orderId=${encodeURIComponent(id)}`).then(r=>r.ok?r.json():Promise.reject());if(app.user.warehouse==='Балашиха'&&status.requiresCombined&&!status.combined.completed){app.phase='combined';app.noCargo=false;app.special={b:false,p:false,photos:{}};app.pallets=[];q('#setupTitle').textContent='Палеты после объединения';q('#setupSub').textContent='Укажите итоговое количество палет после догруза из Мытищ.';show('setup');renderUser();toast('Сделайте фото груза после объединения');return}if((app.user.warehouse==='Балашиха'&&status.balashikha.completed)||(app.user.warehouse==='Мытищи'&&status.mytishchi.completed)){releaseOrderLock();toast('Ваш склад уже завершил этот этап');return}}catch{}show('special')}
-  function releaseOrderLock(){const orderId=app.activeLock;app.activeLock=null;if(orderId)fetch('/api/order-locks/release',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId}),keepalive:true}).catch(()=>{})}
-  async function refreshLocks(){if(!app.user.login)return;try{app.locks=(await fetch('/api/order-locks',{cache:'no-store'}).then(r=>r.json())).items||[];if(app.orders.length)orderRows(app.orders)}catch{}}
-  let ordersLoading=false;
-  async function refreshPending(){if(!app.user.login)return;try{const previous=new Set(app.pending.map(x=>`${x.orderId}:${x.requiresCombined}:${x.mytishchiReady}`));app.pending=(await fetch('/api/pending').then(r=>r.json())).items||[];if(app.user.warehouse==='Балашиха')app.pending.filter(x=>x.mytishchiReady&&!previous.has(`${x.orderId}:${x.requiresCombined}:${x.mytishchiReady}`)).forEach(x=>notifyReady(x));if(app.orders.length)orderRows(app.orders)}catch{}}
-  function notifyReady(item){const key=`akfix_notice_${item.orderId}_${item.requiresCombined}`;if(localStorage.getItem(key))return;localStorage.setItem(key,'1');const text=item.requiresCombined?'Нужно сфотографировать объединённый груз':'Склад Мытищи завершил проверку';toast(`${item.orderNumber}: ${text}`);if('Notification'in window&&Notification.permission==='granted')new Notification(item.orderNumber,{body:text,icon:'/assets/logo.svg',tag:key})}
-  q('#enableNotifications').onclick=async()=>{if(!('Notification'in window))return toast('Уведомления не поддерживаются на этом телефоне');const permission=await Notification.requestPermission();toast(permission==='granted'?'Уведомления включены':'Уведомления не разрешены')};
-  async function loadOrders(){if(ordersLoading)return;ordersLoading=true;const cacheKey=`akfix_orders_${app.user.warehouse}`;if(!app.orders.length){try{app.orders=JSON.parse(localStorage.getItem(cacheKey)||'[]')}catch{}orderRows(app.orders)}try{const [statusData,fieldsData]=await Promise.all([fetch(WEBHOOK+'crm.status.list.json',{method:'POST',body:new URLSearchParams({'filter[ENTITY_ID]':'DYNAMIC_1052_STAGE_31'})}).then(r=>r.json()),fetch(WEBHOOK+'crm.item.fields.json',{method:'POST',body:new URLSearchParams({entityTypeId:'1052'})}).then(r=>r.json())]);const definitions=fieldsData.result?.fields||fieldsData.result||{},plannedField=Object.entries(definitions).find(([,field])=>/планов.*(отгруз|достав)/i.test(String(field.title||field.formLabel||'')))?.[0]||'';const targetStages=(statusData.result||[]).filter(s=>/передан.{0,18}(сбор|провер)/i.test(s.NAME));if(!targetStages.length)throw new Error('STAGES_NOT_FOUND');const batches=await Promise.all(targetStages.map(async stage=>{const form=new URLSearchParams();form.set('entityTypeId','1052');form.set('filter[categoryId]','31');form.set('filter[stageId]',stage.STATUS_ID);form.set('select[0]','id');form.set('select[1]','title');form.set('select[2]','stageId');form.set('select[3]','updatedTime');if(plannedField)form.set('select[4]',plannedField);form.set('start','0');const data=await fetch(WEBHOOK+'crm.item.list.json',{method:'POST',body:form}).then(r=>r.json());if(data.error)throw new Error(data.error);return(data.result?.items||[]).map(x=>({...x,stageName:stage.NAME}))}));app.orders=batches.flat().map(x=>({id:x.id,title:x.title||`Заказ ${x.id}`,stageName:x.stageName,plannedShipment:plannedField?x[plannedField]:null,updated:new Date(x.updatedTime||Date.now()).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}));localStorage.setItem(cacheKey,JSON.stringify(app.orders));q('#syncText').textContent=`Bitrix24 · ${app.orders.length} заказов · обновлено ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`;orderRows(app.orders)}catch(e){q('#syncText').textContent=app.orders.length?'Нет сети · показан сохранённый список':'Нет соединения с Bitrix24 · сохранённых заказов нет';orderRows(app.orders)}finally{ordersLoading=false}}
-  q('#search').oninput=e=>orderRows(app.orders.filter(o=>o.title.toLowerCase().includes(e.target.value.toLowerCase())));
-  q('#refreshOrders').onclick=()=>{loadOrders();toast(navigator.onLine?'Обновляем заказы…':'Нет интернета — показан сохранённый список')};
-  function syncChoices(changed){if(changed==='none'&&q('#hasNone').checked){q('#hasB').checked=q('#hasP').checked=false}if(changed!=='none'&&(q('#hasB').checked||q('#hasP').checked))q('#hasNone').checked=false;if(!q('#hasB').checked&&!q('#hasP').checked)q('#hasNone').checked=true;app.special.b=q('#hasB').checked;app.special.p=q('#hasP').checked;qa('.choice').forEach(x=>x.classList.toggle('selected',x.querySelector('input').checked));renderSpecialPhotos()}
-  ['hasB','hasP','hasNone'].forEach(id=>q('#'+id).onchange=()=>syncChoices(id==='hasNone'?'none':id));
-  function specialSlot(key,title,sub){const has=app.special.photos[key];return `<label class="photo-slot ${has?'has':''}"><span class="camera">${has?'✓':''}</span><span><b>${title}</b><small>${has?'Фото добавлено':sub}</small></span><input type="file" accept="image/*" capture="environment" data-special="${key}"></label>`}
-  function renderSpecialPhotos(){let html='';if(app.special.b)html+=specialSlot('bBox','Б: состояние коробки','Снимите коробку крупным планом')+specialSlot('bInside','Б: товар внутри','Откройте коробку и снимите товар');if(app.special.p)html+=specialSlot('pMark','П: маркировка и срок','Текст должен хорошо читаться')+specialSlot('pInside','П: товар внутри','Откройте коробку и снимите товар');q('#specialPhotos').innerHTML=html;qa('[data-special]').forEach(x=>x.onchange=()=>{if(x.files[0])app.special.photos[x.dataset.special]=x.files[0];renderSpecialPhotos()});validateSpecial()}
-  function validateSpecial(){const needed=[...(app.special.b?['bBox','bInside']:[]),...(app.special.p?['pMark','pInside']:[])];q('#toSetup').disabled=!app.noCargo&&needed.some(k=>!app.special.photos[k])}
-  function renderUser(){if(q('#employeeInitial'))q('#employeeInitial').textContent=app.user.name[0];if(q('#employeeName'))q('#employeeName').textContent=app.user.name;if(q('#employeeWarehouse'))q('#employeeWarehouse').textContent='Склад '+app.user.warehouse;q('#noCargoEarlyTitle').childNodes[0].textContent=`На складе ${app.user.warehouse} товара нет`;q('#noCargoEarlyText').textContent='Зафиксировать отсутствие товара и выгрузить результат без фотографий.';q('#warehouseTip').textContent=`Проверяем склад ${app.user.warehouse}`;if(q('#listInitial'))q('#listInitial').textContent=app.user.name[0];if(q('#listEmployee'))q('#listEmployee').textContent=app.user.name;if(q('#listWarehouse'))q('#listWarehouse').textContent=app.user.warehouse;renderTop(app.screen)}
-  async function refreshQueueBadge(){const rows=await OfflineQueue.list(app.user.login);q('#queueBadge').textContent=rows.length||'';q('#offlineState').classList.toggle('show',!navigator.onLine||rows.length>0);q('#offlineState').textContent=!navigator.onLine?`Нет интернета. В очереди: ${rows.length}. Данные и фотографии сохранены на телефоне.`:rows.length?`Ожидают отправки: ${rows.length}. Выгрузка начнётся автоматически.`:''}
-  function historyCard(item,queued=false){const date=new Date(item.createdAt).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});const result=item.noCargo?'Товара нет':`${item.palletTotal??Number(item.fields?.euro||0)+Number(item.fields?.american||0)} палет`;return `<article class="history-item ${queued?'queued':''}"><h3>${displayOrderTitle(item.orderTitle||item.fields?.orderTitle||item.orderNumber||'Заказ')}</h3><p>${item.warehouse||app.user.warehouse} · ${result}</p><div class="history-meta"><span>${date}</span><span class="history-status">${queued?'Ожидает интернета':item.status==='completed'?'Выгружено':'Ожидает второй склад'}</span></div></article>`}
-  function pendingCard(item){const date=new Date(item.savedAt).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});return `<article class="history-item waiting"><h3>${displayOrderTitle(item.orderTitle||item.orderNumber||'Заказ')}</h3><p><b>${item.completedWarehouse}</b>: ${item.employee} — готово</p><p><b>${item.waitingFor}</b>: ожидает проверку сотрудника</p><div class="history-meta"><span>${date}</span><span class="history-status">Ожидает ${item.waitingFor}</span></div></article>`}
-  async function loadHistory(){q('#historyList').innerHTML='<div class="empty">Загрузка истории…</div>';q('#pendingList').innerHTML='<div class="empty compact-empty">Проверяем ожидания…</div>';const queued=await OfflineQueue.list(app.user.login);let server=[],pending=[];try{[server,pending]=await Promise.all([fetch('/api/history').then(r=>r.ok?r.json():Promise.reject()).then(x=>x.items||[]),fetch('/api/pending').then(r=>r.ok?r.json():Promise.reject()).then(x=>x.items||[])])}catch{}q('#pendingList').innerHTML=pending.map(pendingCard).join('')||'<div class="empty compact-empty"><b>Нет заказов в ожидании</b><small>Здесь появятся заказы, которые уже проверил один склад.</small></div>';q('#historyList').innerHTML=[...queued.map(x=>historyCard({...x,noCargo:x.fields.noCargo==='true'},true)),...server.map(x=>historyCard(x))].join('')||'<div class="empty compact-empty"><b>Проверок пока нет</b><small>После первой проверки здесь сохранится заказ, склад и результат.</small></div>';refreshQueueBadge()}
-  qa('[data-nav]').forEach(button=>button.onclick=()=>{const screen=button.dataset.nav;if(screen==='receiving'){location.href='/receiving/';return}show(screen);qa('[data-nav]').forEach(x=>x.classList.toggle('active',x===button));if(screen==='history')loadHistory();else loadOrders()});
-  async function logout(){localStorage.removeItem('akfix_last_user');await fetch('/api/logout',{method:'POST'}).catch(()=>{});location.reload()}
-  q('#toSetup').onclick=()=>{if(app.noCargo){finishWarehouse(true);return}renderUser();show('setup')};
-  q('#switchUser').onclick=logout;q('#listSwitch').onclick=logout;
-  q('#noCargoEarly').onchange=e=>{app.noCargo=e.target.checked;q('#specialContent').hidden=app.noCargo;q('#toSetup').textContent=app.noCargo?'Выгрузить «Товара нет»':'Продолжить';validateSpecial()};
-  qa('[data-count]').forEach(b=>b.onclick=()=>{const key=b.dataset.count;app[key]=Math.max(0,app[key]+Number(b.dataset.delta));q('#'+key).textContent=app[key];q('#total').textContent=app.euro+app.american;q('#toPallets').disabled=app.euro+app.american===0});
-  function buildPallets(){const old=new Map(app.pallets.map(p=>[p.type+p.typeIndex,p]));app.pallets=[];for(const [type,n] of [['Европалета',app.euro],['Американская палета',app.american]])for(let i=1;i<=n;i++)app.pallets.push(old.get(type+i)||{id:app.pallets.length+1,type,typeIndex:i,photos:{}});renderPallets()}
-  q('#toPallets').onclick=()=>{buildPallets();show('pallets')};
-  function renderPallets(){q('#pallets').innerHTML=app.pallets.map((p,i)=>{const n=Object.keys(p.photos).length;return `<button class="pallet ${n===PALLET_PHOTO_COUNT?'done':''}" data-pallet="${i}"><span class="pallet-icon">▱</span><span><b>${p.type}</b><small>Палета ${i+1}</small><span class="progress">${Array.from({length:PALLET_PHOTO_COUNT},(_,k)=>`<i class="${k<n?'on':''}"></i>`).join('')}</span></span><span class="pallet-count">${n}/${PALLET_PHOTO_COUNT} ›</span></button>`}).join('');qa('[data-pallet]').forEach(b=>b.onclick=()=>openPallet(Number(b.dataset.pallet)));q('#finish').disabled=!app.pallets.length||app.pallets.some(p=>Object.keys(p.photos).length<PALLET_PHOTO_COUNT)}
-  function openPallet(i){app.current=i;const p=app.pallets[i];q('#captureTitle').textContent=`Палета ${i+1}`;q('#captureType').textContent=p.type;renderCapture();show('capture')}
-  const shots=[['side1','Первая сторона','Сфотографируйте всю палету с первой стороны'],['side2','Вторая сторона','Перейдите на противоположную сторону и сфотографируйте всю палету'],['top','Вид сверху','Сверху должна быть видна вся палета']];
-  function renderCapture(){const p=app.pallets[app.current],n=Object.keys(p.photos).length;q('#captureProgress').textContent=`${n}/${PALLET_PHOTO_COUNT}`;q('#captureList').innerHTML=shots.map((s,i)=>`<div class="capture-wrap"><span class="number">${i+1}</span><label class="photo-slot ${p.photos[s[0]]?'has':''}"><span class="camera">${p.photos[s[0]]?'✓':''}</span><span><b>${s[1]}</b><small>${p.photos[s[0]]?'Фото добавлено':s[2]}</small></span><input type="file" accept="image/*" capture="environment" data-shot="${s[0]}"></label></div>`).join('');qa('[data-shot]').forEach(x=>x.onchange=()=>{if(x.files[0])p.photos[x.dataset.shot]=x.files[0];renderCapture()});q('#savePallet').disabled=n<PALLET_PHOTO_COUNT;q('#saveWhy').textContent=n<PALLET_PHOTO_COUNT?`Добавьте ещё ${PALLET_PHOTO_COUNT-n} ${PALLET_PHOTO_COUNT-n===1?'фотографию':'фотографии'}`:'Все фотографии добавлены'}
-  q('#savePallet').onclick=()=>{show('pallets');renderPallets();toast('Палета сохранена. Выберите следующую вручную.')};
-  async function submitCheck(data){await OfflineQueue.enqueue(data,app.user);releaseOrderLock();if(navigator.onLine)OfflineQueue.sync(app.user.login).then(result=>{if(result.sent)toast('Проверка успешно выгружена');if(result.authRequired)toast('Войдите снова — сохранённые фото не потеряются');if(result.error)toast('Выгрузка задерживается и будет повторена позже');refreshQueueBadge();if(app.screen==='history')loadHistory()});return{queued:true,uploading:navigator.onLine}}
-  async function finishWarehouse(noCargo=false){const files=[];Object.entries(app.special.photos).forEach(([key,file])=>files.push([`special-${key}-${file.name||'photo.jpg'}`,file]));app.pallets.forEach((p,i)=>Object.entries(p.photos).forEach(([shot,file])=>files.push([`pallet-${i+1}-${shot}-${file.name||'photo.jpg'}`,file])));const data=new FormData();data.set('orderId',app.order.id);data.set('orderNumber',orderNumber(app.order.title));data.set('orderTitle',app.order.title);data.set('noCargo',String(noCargo));data.set('euro',String(app.euro));data.set('american',String(app.american));data.set('specialB',String(app.special.b));data.set('specialP',String(app.special.p));files.forEach(([name,file])=>data.append('photos',file,name));q('#uploading').classList.add('show');try{const result=await submitCheck(data);const photos=noCargo?0:files.length;q('#summary').innerHTML=`<div><span>Заказ</span><b>${orderNumber(app.order.title)}</b></div><div><span>Склад</span><b>${app.user.warehouse}</b></div><div><span>Проверил</span><b>${app.user.name}</b></div>${noCargo?'<div><span>Результат</span><b>Товара нет</b></div>':`<div><span>Европалеты</span><b>${app.euro}</b></div><div><span>Американские</span><b>${app.american}</b></div><div><span>Фотографии</span><b>${photos}</b></div>`}`;q('.success .sub').textContent=result.uploading?'Проверка и фотографии сохранены. Выгрузка в Bitrix24 и Telegram продолжается в фоне — можно работать дальше.':'Интернета нет. Проверка и фотографии сохранены на телефоне и отправятся автоматически.';show('success');refreshQueueBadge()}catch(error){toast('Не удалось сохранить фотографии на телефоне. Попробуйте ещё раз.')}finally{q('#uploading').classList.remove('show')}}
-  q('#finish').onclick=()=>finishWarehouse(false);
-  q('#again').onclick=()=>location.reload();function toast(t){q('#toast').textContent=t;q('#toast').classList.add('show');setTimeout(()=>q('#toast').classList.remove('show'),2300)}
-  function wireHelp(){qa('[data-help]').forEach(b=>b.onclick=()=>q('#helpModal').classList.add('show'))}q('#closeHelp').onclick=q('#understood').onclick=()=>q('#helpModal').classList.remove('show');q('#helpModal').onclick=e=>{if(e.target===q('#helpModal'))q('#helpModal').classList.remove('show')};q('#closeCoach').onclick=()=>q('#palletCoach').remove();
-  q('#loginForm').onsubmit=async e=>{e.preventDefault();const button=q('#loginButton');button.disabled=true;q('#authError').textContent='';try{const response=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({login:q('#login').value,pin:q('#pin').value})});const data=await response.json();if(!response.ok)throw new Error('Неверный логин или PIN-код');startApp(data.user)}catch(error){q('#authError').textContent=error.message}finally{button.disabled=false}};
-  async function checkAppVersion(){if(!navigator.onLine)return;try{const {version}=await fetch('/api/version',{cache:'no-store'}).then(r=>r.json());const previous=localStorage.getItem('akfix_app_version');localStorage.setItem('akfix_app_version',version);if(previous&&previous!==version){if(app.screen==='orders'||app.screen==='history'||app.screen==='success'){location.reload()}else{toast('Доступно обновление. Оно установится после возврата к списку заказов.')}}}catch{}}
-  function startApp(user){if(user.role==='admin'){location.href='/admin.html';return}if(user.role==='driver'){location.href='/driver/';return}if(user.role==='logist'){location.href='/logist/';return}app.user=user;localStorage.setItem('akfix_last_user',JSON.stringify(user));q('#auth').hidden=true;q('#auth').classList.add('hidden');q('#appShell').hidden=false;q('#bottomNav').hidden=false;const initialScreen=new URLSearchParams(location.search).get('screen')==='history'?'history':'orders';show(initialScreen);renderUser();wireHelp();renderSpecialPhotos();if(initialScreen==='history')loadHistory();else loadOrders();refreshQueueBadge();navigator.storage?.persist?.();OfflineQueue.sync(user.login).then(result=>{if(result.sent)toast(`Отправлено из очереди: ${result.sent}`);if(result.authRequired)toast('Войдите снова — сохранённые проверки останутся в очереди');refreshQueueBadge()});setInterval(()=>{if(app.screen==='orders'&&!document.hidden)loadOrders()},5000);checkAppVersion();clearInterval(versionTimer);versionTimer=setInterval(checkAppVersion,60000)}
-  addEventListener('online',()=>{if(!app.user.login)return;toast('Интернет появился. Отправляем сохранённые проверки…');OfflineQueue.sync(app.user.login).then(result=>{if(result.sent)toast(`Успешно отправлено: ${result.sent}`);refreshQueueBadge();if(app.screen==='history')loadHistory()})});addEventListener('offline',()=>{toast('Интернет пропал. Можно продолжать работу офлайн.');refreshQueueBadge()});addEventListener('offlinequeuechange',refreshQueueBadge);
-  if('serviceWorker'in navigator){navigator.serviceWorker.register('/sw.js',{updateViaCache:'none'}).then(registration=>registration.update()).catch(()=>{});navigator.serviceWorker.addEventListener('controllerchange',()=>{if(sessionStorage.getItem('akfix_reloaded'))return;sessionStorage.setItem('akfix_reloaded','1');location.reload()});setTimeout(()=>sessionStorage.removeItem('akfix_reloaded'),5000)}
-  setInterval(refreshPending,5000);
-  setInterval(refreshLocks,2000);
-  setInterval(()=>{if(app.activeLock)fetch('/api/order-locks/acquire',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId:app.activeLock})}).catch(()=>{})},15000);
-  addEventListener('pagehide',releaseOrderLock);
-  setInterval(()=>{if(!navigator.onLine||!app.user.login)return;OfflineQueue.list(app.user.login).then(items=>{if(!items.length)return;OfflineQueue.sync(app.user.login).then(result=>{if(result.sent){toast(`Выгружено из очереди: ${result.sent}`);refreshPending();loadOrders()}refreshQueueBadge()})})},15000);
-  const showLogin=()=>{if(app.user.login)return;const auth=q('#auth');auth.hidden=false;auth.classList.remove('hidden')};
-  fetch('/api/session').then(async r=>{if(r.ok){startApp((await r.json()).user);return}showLogin()}).catch(()=>{if(!navigator.onLine){try{const user=JSON.parse(localStorage.getItem('akfix_last_user'));if(user){startApp(user);return}}catch{}}showLogin()});
+const WEBHOOK = '/api/bitrix/';
+const q = (s) => document.querySelector(s),
+  qa = (s) => [...document.querySelectorAll(s)];
+const PALLET_PHOTO_COUNT = 3;
+const app = {
+  screen: 'orders',
+  order: null,
+  user: { name: '—', warehouse: '—' },
+  noCargo: false,
+  euro: 1,
+  american: 0,
+  special: { b: false, p: false, photos: {} },
+  pallets: [],
+  current: null,
+  orders: [],
+  phase: 'warehouse',
+  pending: [],
+  locks: [],
+  activeLock: null,
+};
+let versionTimer;
+function show(name) {
+  if (name === 'orders' && app.activeLock) releaseOrderLock();
+  app.screen = name;
+  qa('.screen').forEach((x) => x.classList.toggle('active', x.dataset.screen === name));
+  q('#bottomNav').classList.toggle('visible', ['orders', 'history'].includes(name));
+  qa('[data-nav]').forEach((x) => x.classList.toggle('active', x.dataset.nav === name));
+  renderTop(name);
+  scrollTo(0, 0);
+}
+function orderNumber(title = '') {
+  return title.match(/АФУТ-\d+/i)?.[0] || title.slice(0, 24);
+}
+function displayOrderTitle(title = '') {
+  const numbers = title.match(/АФУТ-\d+/gi) || [];
+  if (!numbers.length) return title;
+  if (/добавк/i.test(title) && numbers.length > 1) return `${numbers[0]} добавка к ${numbers[1]}`;
+  return numbers[0];
+}
+function clientName(title = '') {
+  let value = title
+    .replace(/^\s*\([А-ЯA-Z]\)\s*/i, '')
+    .replace(/АФУТ-\d+/i, '')
+    .trim();
+  value = value.split(/\s+(?:собрать|добавка|вместе)\b/i)[0].trim();
+  return value || 'Клиент не указан';
+}
+function renderTop(name) {
+  const top = q('#top');
+  if (name === 'orders' || name === 'success' || name === 'history') {
+    top.innerHTML = `<img class="brand-logo header-logo" src="/assets/logo.svg" alt="AKFIX"><button class="head-user" data-help aria-label="Инструкция"><span>${app.user.name[0]}</span><b>${app.user.name}</b><i>⌄</i></button>`;
+    wireHelp();
+    return;
+  }
+  const labels = {
+    special: 'Наличие товара',
+    setup: app.phase === 'combined' ? 'Итог после объединения' : 'Склад и палеты',
+    pallets: app.phase === 'combined' ? 'Фото после объединения' : 'Палеты',
+    capture: 'Фото палеты',
+  };
+  top.innerHTML = `<button class="back" aria-label="Назад">‹</button><div class="top-title"><b>${labels[name]}</b><small>${orderNumber(app.order?.title)} · ${app.order?.stageName || 'Заказ на проверку'}</small></div><button class="help-btn" data-help aria-label="Помощь">?</button>`;
+  q('.back').onclick = () =>
+    show(
+      {
+        special: 'orders',
+        setup: app.phase === 'combined' ? 'orders' : 'special',
+        pallets: 'setup',
+        capture: 'pallets',
+      }[name]
+    );
+  wireHelp();
+}
+function checkStatus(order) {
+  const row = app.pending.find((x) => String(x.orderId) === String(order.id));
+  if (!row) return { label: 'Не начат', kind: 'not-started' };
+  if (row.requiresCombined) return { label: 'Нужен догруз', kind: 'needs-combined' };
+  if (row.mytishchiReady) return { label: 'Мытищи готовы', kind: 'myt-ready' };
+  if (row.balashikhaReady) return { label: 'Балашиха готова', kind: 'bal-ready' };
+  return { label: 'Не начат', kind: 'not-started' };
+}
+function plannedBadge(value) {
+  if (!value) return '<span class="planned-date missing">Плановая отгрузка не указана</span>';
+  const date = new Date(value),
+    today = new Date();
+  if (Number.isNaN(date.getTime())) return '<span class="planned-date missing">Плановая отгрузка не указана</span>';
+  date.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((date - today) / 86400000),
+    label =
+      days === 0
+        ? 'Сегодня'
+        : days === 1
+          ? 'Завтра'
+          : days === -1
+            ? 'Вчера'
+            : date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long' }),
+    kind = days < 0 ? 'overdue' : days === 0 ? 'today' : days === 1 ? 'tomorrow' : 'future';
+  return `<span class="planned-date ${kind}">Плановая отгрузка · ${label}</span>`;
+}
+function orderRows(rows) {
+  const list = q('#orders'),
+    focus = document.activeElement?.dataset?.order;
+  list.innerHTML = rows.length
+    ? rows
+        .map((o) => {
+          const status = checkStatus(o),
+            lock = app.locks.find((x) => String(x.orderId) === String(o.id) && x.warehouse === app.user.warehouse),
+            busy = lock && lock.employee !== app.user.name;
+          return `<button class="order ${status.kind} ${busy ? 'is-busy' : ''}" data-order="${o.id}" ${busy ? 'aria-disabled="true"' : ''}><span class="order-icon">${busy ? lock.employee.slice(0, 1) : '▤'}</span><span><b>${displayOrderTitle(o.title)}</b><small class="order-client">${clientName(o.title)}</small>${plannedBadge(o.plannedShipment)}${busy ? `<span class="live-worker"><i></i>Проверяет ${lock.employee} · ${lock.warehouse}</span>` : `<span class="order-status">${status.label}</span>`}</span><span class="chev">${busy ? '●' : '›'}</span></button>`;
+        })
+        .join('')
+    : '<div class="empty">Заказы не найдены</div>';
+  qa('[data-order]').forEach(
+    (b) =>
+      (b.onclick = async () => {
+        if (b.classList.contains('is-busy')) return toast('Этот заказ уже проверяет другой сотрудник');
+        b.classList.add('opening');
+        await openOrder(b.dataset.order);
+        b.classList.remove('opening');
+      })
+  );
+  if (focus) list.querySelector(`[data-order="${focus}"]`)?.focus();
+}
+async function openOrder(id) {
+  try {
+    const response = await fetch('/api/order-locks/acquire', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: id }),
+      }),
+      data = await response.json();
+    if (response.status === 409) return toast(`Заказ уже проверяет ${data.lock.employee}`);
+    if (!response.ok) throw new Error();
+    app.activeLock = String(id);
+  } catch {
+    return toast('Не удалось закрепить заказ. Попробуйте ещё раз.');
+  }
+  app.order = app.orders.find((o) => String(o.id) === String(id));
+  app.phase = 'warehouse';
+  try {
+    const status = await fetch(`/api/check-status?orderId=${encodeURIComponent(id)}`).then((r) =>
+      r.ok ? r.json() : Promise.reject()
+    );
+    if (app.user.warehouse === 'Балашиха' && status.requiresCombined && !status.combined.completed) {
+      app.phase = 'combined';
+      app.noCargo = false;
+      app.special = { b: false, p: false, photos: {} };
+      app.pallets = [];
+      q('#setupTitle').textContent = 'Палеты после объединения';
+      q('#setupSub').textContent = 'Укажите итоговое количество палет после догруза из Мытищ.';
+      show('setup');
+      renderUser();
+      toast('Сделайте фото груза после объединения');
+      return;
+    }
+    if (
+      (app.user.warehouse === 'Балашиха' && status.balashikha.completed) ||
+      (app.user.warehouse === 'Мытищи' && status.mytishchi.completed)
+    ) {
+      releaseOrderLock();
+      toast('Ваш склад уже завершил этот этап');
+      return;
+    }
+  } catch {}
+  show('special');
+}
+function releaseOrderLock() {
+  const orderId = app.activeLock;
+  app.activeLock = null;
+  if (orderId)
+    fetch('/api/order-locks/release', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId }),
+      keepalive: true,
+    }).catch(() => {});
+}
+async function refreshLocks() {
+  if (!app.user.login) return;
+  try {
+    app.locks = (await fetch('/api/order-locks', { cache: 'no-store' }).then((r) => r.json())).items || [];
+    if (app.orders.length) orderRows(app.orders);
+  } catch {}
+}
+let ordersLoading = false;
+async function refreshPending() {
+  if (!app.user.login) return;
+  try {
+    const previous = new Set(app.pending.map((x) => `${x.orderId}:${x.requiresCombined}:${x.mytishchiReady}`));
+    app.pending = (await fetch('/api/pending').then((r) => r.json())).items || [];
+    if (app.user.warehouse === 'Балашиха')
+      app.pending
+        .filter((x) => x.mytishchiReady && !previous.has(`${x.orderId}:${x.requiresCombined}:${x.mytishchiReady}`))
+        .forEach((x) => notifyReady(x));
+    if (app.orders.length) orderRows(app.orders);
+  } catch {}
+}
+function notifyReady(item) {
+  const key = `akfix_notice_${item.orderId}_${item.requiresCombined}`;
+  if (localStorage.getItem(key)) return;
+  localStorage.setItem(key, '1');
+  const text = item.requiresCombined ? 'Нужно сфотографировать объединённый груз' : 'Склад Мытищи завершил проверку';
+  toast(`${item.orderNumber}: ${text}`);
+  if ('Notification' in window && Notification.permission === 'granted')
+    new Notification(item.orderNumber, { body: text, icon: '/assets/logo.svg', tag: key });
+}
+q('#enableNotifications').onclick = async () => {
+  if (!('Notification' in window)) return toast('Уведомления не поддерживаются на этом телефоне');
+  const permission = await Notification.requestPermission();
+  toast(permission === 'granted' ? 'Уведомления включены' : 'Уведомления не разрешены');
+};
+async function loadOrders() {
+  if (ordersLoading) return;
+  ordersLoading = true;
+  const cacheKey = `akfix_orders_${app.user.warehouse}`;
+  if (!app.orders.length) {
+    try {
+      app.orders = JSON.parse(localStorage.getItem(cacheKey) || '[]');
+    } catch {}
+    orderRows(app.orders);
+  }
+  try {
+    const [statusData, fieldsData] = await Promise.all([
+      fetch(WEBHOOK + 'crm.status.list.json', {
+        method: 'POST',
+        body: new URLSearchParams({ 'filter[ENTITY_ID]': 'DYNAMIC_1052_STAGE_31' }),
+      }).then((r) => r.json()),
+      fetch(WEBHOOK + 'crm.item.fields.json', {
+        method: 'POST',
+        body: new URLSearchParams({ entityTypeId: '1052' }),
+      }).then((r) => r.json()),
+    ]);
+    const definitions = fieldsData.result?.fields || fieldsData.result || {},
+      plannedField =
+        Object.entries(definitions).find(([, field]) =>
+          /планов.*(отгруз|достав)/i.test(String(field.title || field.formLabel || ''))
+        )?.[0] || '';
+    const targetStages = (statusData.result || []).filter((s) => /передан.{0,18}(сбор|провер)/i.test(s.NAME));
+    if (!targetStages.length) throw new Error('STAGES_NOT_FOUND');
+    const batches = await Promise.all(
+      targetStages.map(async (stage) => {
+        const form = new URLSearchParams();
+        form.set('entityTypeId', '1052');
+        form.set('filter[categoryId]', '31');
+        form.set('filter[stageId]', stage.STATUS_ID);
+        form.set('select[0]', 'id');
+        form.set('select[1]', 'title');
+        form.set('select[2]', 'stageId');
+        form.set('select[3]', 'updatedTime');
+        if (plannedField) form.set('select[4]', plannedField);
+        form.set('start', '0');
+        const data = await fetch(WEBHOOK + 'crm.item.list.json', { method: 'POST', body: form }).then((r) => r.json());
+        if (data.error) throw new Error(data.error);
+        return (data.result?.items || []).map((x) => ({ ...x, stageName: stage.NAME }));
+      })
+    );
+    app.orders = batches.flat().map((x) => ({
+      id: x.id,
+      title: x.title || `Заказ ${x.id}`,
+      stageName: x.stageName,
+      plannedShipment: plannedField ? x[plannedField] : null,
+      updated: new Date(x.updatedTime || Date.now()).toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    }));
+    localStorage.setItem(cacheKey, JSON.stringify(app.orders));
+    q('#syncText').textContent =
+      `Bitrix24 · ${app.orders.length} заказов · обновлено ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+    orderRows(app.orders);
+  } catch (e) {
+    q('#syncText').textContent = app.orders.length
+      ? 'Нет сети · показан сохранённый список'
+      : 'Нет соединения с Bitrix24 · сохранённых заказов нет';
+    orderRows(app.orders);
+  } finally {
+    ordersLoading = false;
+  }
+}
+q('#search').oninput = (e) =>
+  orderRows(app.orders.filter((o) => o.title.toLowerCase().includes(e.target.value.toLowerCase())));
+q('#refreshOrders').onclick = () => {
+  loadOrders();
+  toast(navigator.onLine ? 'Обновляем заказы…' : 'Нет интернета — показан сохранённый список');
+};
+function syncChoices(changed) {
+  if (changed === 'none' && q('#hasNone').checked) {
+    q('#hasB').checked = q('#hasP').checked = false;
+  }
+  if (changed !== 'none' && (q('#hasB').checked || q('#hasP').checked)) q('#hasNone').checked = false;
+  if (!q('#hasB').checked && !q('#hasP').checked) q('#hasNone').checked = true;
+  app.special.b = q('#hasB').checked;
+  app.special.p = q('#hasP').checked;
+  qa('.choice').forEach((x) => x.classList.toggle('selected', x.querySelector('input').checked));
+  renderSpecialPhotos();
+}
+['hasB', 'hasP', 'hasNone'].forEach((id) => (q('#' + id).onchange = () => syncChoices(id === 'hasNone' ? 'none' : id)));
+function specialSlot(key, title, sub) {
+  const has = app.special.photos[key];
+  return `<label class="photo-slot ${has ? 'has' : ''}"><span class="camera">${has ? '✓' : ''}</span><span><b>${title}</b><small>${has ? 'Фото добавлено' : sub}</small></span><input type="file" accept="image/*" capture="environment" data-special="${key}"></label>`;
+}
+function renderSpecialPhotos() {
+  let html = '';
+  if (app.special.b)
+    html +=
+      specialSlot('bBox', 'Б: состояние коробки', 'Снимите коробку крупным планом') +
+      specialSlot('bInside', 'Б: товар внутри', 'Откройте коробку и снимите товар');
+  if (app.special.p)
+    html +=
+      specialSlot('pMark', 'П: маркировка и срок', 'Текст должен хорошо читаться') +
+      specialSlot('pInside', 'П: товар внутри', 'Откройте коробку и снимите товар');
+  q('#specialPhotos').innerHTML = html;
+  qa('[data-special]').forEach(
+    (x) =>
+      (x.onchange = () => {
+        if (x.files[0]) app.special.photos[x.dataset.special] = x.files[0];
+        renderSpecialPhotos();
+      })
+  );
+  validateSpecial();
+}
+function validateSpecial() {
+  const needed = [...(app.special.b ? ['bBox', 'bInside'] : []), ...(app.special.p ? ['pMark', 'pInside'] : [])];
+  q('#toSetup').disabled = !app.noCargo && needed.some((k) => !app.special.photos[k]);
+}
+function renderUser() {
+  if (q('#employeeInitial')) q('#employeeInitial').textContent = app.user.name[0];
+  if (q('#employeeName')) q('#employeeName').textContent = app.user.name;
+  if (q('#employeeWarehouse')) q('#employeeWarehouse').textContent = 'Склад ' + app.user.warehouse;
+  q('#noCargoEarlyTitle').childNodes[0].textContent = `На складе ${app.user.warehouse} товара нет`;
+  q('#noCargoEarlyText').textContent = 'Зафиксировать отсутствие товара и выгрузить результат без фотографий.';
+  q('#warehouseTip').textContent = `Проверяем склад ${app.user.warehouse}`;
+  if (q('#listInitial')) q('#listInitial').textContent = app.user.name[0];
+  if (q('#listEmployee')) q('#listEmployee').textContent = app.user.name;
+  if (q('#listWarehouse')) q('#listWarehouse').textContent = app.user.warehouse;
+  renderTop(app.screen);
+}
+async function refreshQueueBadge() {
+  const rows = await OfflineQueue.list(app.user.login);
+  q('#queueBadge').textContent = rows.length || '';
+  q('#offlineState').classList.toggle('show', !navigator.onLine || rows.length > 0);
+  q('#offlineState').textContent = !navigator.onLine
+    ? `Нет интернета. В очереди: ${rows.length}. Данные и фотографии сохранены на телефоне.`
+    : rows.length
+      ? `Ожидают отправки: ${rows.length}. Выгрузка начнётся автоматически.`
+      : '';
+}
+function historyCard(item, queued = false) {
+  const date = new Date(item.createdAt).toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const result = item.noCargo
+    ? 'Товара нет'
+    : `${item.palletTotal ?? Number(item.fields?.euro || 0) + Number(item.fields?.american || 0)} палет`;
+  return `<article class="history-item ${queued ? 'queued' : ''}"><h3>${displayOrderTitle(item.orderTitle || item.fields?.orderTitle || item.orderNumber || 'Заказ')}</h3><p>${item.warehouse || app.user.warehouse} · ${result}</p><div class="history-meta"><span>${date}</span><span class="history-status">${queued ? 'Ожидает интернета' : item.status === 'completed' ? 'Выгружено' : 'Ожидает второй склад'}</span></div></article>`;
+}
+function pendingCard(item) {
+  const date = new Date(item.savedAt).toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return `<article class="history-item waiting"><h3>${displayOrderTitle(item.orderTitle || item.orderNumber || 'Заказ')}</h3><p><b>${item.completedWarehouse}</b>: ${item.employee} — готово</p><p><b>${item.waitingFor}</b>: ожидает проверку сотрудника</p><div class="history-meta"><span>${date}</span><span class="history-status">Ожидает ${item.waitingFor}</span></div></article>`;
+}
+async function loadHistory() {
+  q('#historyList').innerHTML = '<div class="empty">Загрузка истории…</div>';
+  q('#pendingList').innerHTML = '<div class="empty compact-empty">Проверяем ожидания…</div>';
+  const queued = await OfflineQueue.list(app.user.login);
+  let server = [],
+    pending = [];
+  try {
+    [server, pending] = await Promise.all([
+      fetch('/api/history')
+        .then((r) => (r.ok ? r.json() : Promise.reject()))
+        .then((x) => x.items || []),
+      fetch('/api/pending')
+        .then((r) => (r.ok ? r.json() : Promise.reject()))
+        .then((x) => x.items || []),
+    ]);
+  } catch {}
+  q('#pendingList').innerHTML =
+    pending.map(pendingCard).join('') ||
+    '<div class="empty compact-empty"><b>Нет заказов в ожидании</b><small>Здесь появятся заказы, которые уже проверил один склад.</small></div>';
+  q('#historyList').innerHTML =
+    [
+      ...queued.map((x) => historyCard({ ...x, noCargo: x.fields.noCargo === 'true' }, true)),
+      ...server.map((x) => historyCard(x)),
+    ].join('') ||
+    '<div class="empty compact-empty"><b>Проверок пока нет</b><small>После первой проверки здесь сохранится заказ, склад и результат.</small></div>';
+  refreshQueueBadge();
+}
+async function openReceiving(button) {
+  if (button.disabled) return;
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  try {
+    const response = await fetch('/api/session', { cache: 'no-store', credentials: 'same-origin' });
+    if (response.ok) {
+      location.assign('/receiving/');
+      return;
+    }
+    if (response.status === 401) {
+      location.reload();
+      return;
+    }
+    throw new Error(`SESSION_${response.status}`);
+  } catch {
+    toast('Не удалось открыть приёмку. Проверьте интернет и повторите.');
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+  }
+}
+qa('[data-nav]').forEach(
+  (button) =>
+    (button.onclick = () => {
+      const screen = button.dataset.nav;
+      if (screen === 'receiving') {
+        openReceiving(button);
+        return;
+      }
+      show(screen);
+      qa('[data-nav]').forEach((x) => x.classList.toggle('active', x === button));
+      if (screen === 'history') loadHistory();
+      else loadOrders();
+    })
+);
+async function logout() {
+  localStorage.removeItem('akfix_last_user');
+  await fetch('/api/logout', { method: 'POST' }).catch(() => {});
+  location.reload();
+}
+q('#toSetup').onclick = () => {
+  if (app.noCargo) {
+    finishWarehouse(true);
+    return;
+  }
+  renderUser();
+  show('setup');
+};
+q('#switchUser').onclick = logout;
+q('#listSwitch').onclick = logout;
+q('#noCargoEarly').onchange = (e) => {
+  app.noCargo = e.target.checked;
+  q('#specialContent').hidden = app.noCargo;
+  q('#toSetup').textContent = app.noCargo ? 'Выгрузить «Товара нет»' : 'Продолжить';
+  validateSpecial();
+};
+qa('[data-count]').forEach(
+  (b) =>
+    (b.onclick = () => {
+      const key = b.dataset.count;
+      app[key] = Math.max(0, app[key] + Number(b.dataset.delta));
+      q('#' + key).textContent = app[key];
+      q('#total').textContent = app.euro + app.american;
+      q('#toPallets').disabled = app.euro + app.american === 0;
+    })
+);
+function buildPallets() {
+  const old = new Map(app.pallets.map((p) => [p.type + p.typeIndex, p]));
+  app.pallets = [];
+  for (const [type, n] of [
+    ['Европалета', app.euro],
+    ['Американская палета', app.american],
+  ])
+    for (let i = 1; i <= n; i++)
+      app.pallets.push(old.get(type + i) || { id: app.pallets.length + 1, type, typeIndex: i, photos: {} });
+  renderPallets();
+}
+q('#toPallets').onclick = () => {
+  buildPallets();
+  show('pallets');
+};
+function renderPallets() {
+  q('#pallets').innerHTML = app.pallets
+    .map((p, i) => {
+      const n = Object.keys(p.photos).length;
+      return `<button class="pallet ${n === PALLET_PHOTO_COUNT ? 'done' : ''}" data-pallet="${i}"><span class="pallet-icon">▱</span><span><b>${p.type}</b><small>Палета ${i + 1}</small><span class="progress">${Array.from({ length: PALLET_PHOTO_COUNT }, (_, k) => `<i class="${k < n ? 'on' : ''}"></i>`).join('')}</span></span><span class="pallet-count">${n}/${PALLET_PHOTO_COUNT} ›</span></button>`;
+    })
+    .join('');
+  qa('[data-pallet]').forEach((b) => (b.onclick = () => openPallet(Number(b.dataset.pallet))));
+  q('#finish').disabled =
+    !app.pallets.length || app.pallets.some((p) => Object.keys(p.photos).length < PALLET_PHOTO_COUNT);
+}
+function openPallet(i) {
+  app.current = i;
+  const p = app.pallets[i];
+  q('#captureTitle').textContent = `Палета ${i + 1}`;
+  q('#captureType').textContent = p.type;
+  renderCapture();
+  show('capture');
+}
+const shots = [
+  ['side1', 'Первая сторона', 'Сфотографируйте всю палету с первой стороны'],
+  ['side2', 'Вторая сторона', 'Перейдите на противоположную сторону и сфотографируйте всю палету'],
+  ['top', 'Вид сверху', 'Сверху должна быть видна вся палета'],
+];
+function renderCapture() {
+  const p = app.pallets[app.current],
+    n = Object.keys(p.photos).length;
+  q('#captureProgress').textContent = `${n}/${PALLET_PHOTO_COUNT}`;
+  q('#captureList').innerHTML = shots
+    .map(
+      (s, i) =>
+        `<div class="capture-wrap"><span class="number">${i + 1}</span><label class="photo-slot ${p.photos[s[0]] ? 'has' : ''}"><span class="camera">${p.photos[s[0]] ? '✓' : ''}</span><span><b>${s[1]}</b><small>${p.photos[s[0]] ? 'Фото добавлено' : s[2]}</small></span><input type="file" accept="image/*" capture="environment" data-shot="${s[0]}"></label></div>`
+    )
+    .join('');
+  qa('[data-shot]').forEach(
+    (x) =>
+      (x.onchange = () => {
+        if (x.files[0]) p.photos[x.dataset.shot] = x.files[0];
+        renderCapture();
+      })
+  );
+  q('#savePallet').disabled = n < PALLET_PHOTO_COUNT;
+  q('#saveWhy').textContent =
+    n < PALLET_PHOTO_COUNT
+      ? `Добавьте ещё ${PALLET_PHOTO_COUNT - n} ${PALLET_PHOTO_COUNT - n === 1 ? 'фотографию' : 'фотографии'}`
+      : 'Все фотографии добавлены';
+}
+q('#savePallet').onclick = () => {
+  show('pallets');
+  renderPallets();
+  toast('Палета сохранена. Выберите следующую вручную.');
+};
+async function submitCheck(data) {
+  await OfflineQueue.enqueue(data, app.user);
+  releaseOrderLock();
+  if (navigator.onLine)
+    OfflineQueue.sync(app.user.login).then((result) => {
+      if (result.sent) toast('Проверка успешно выгружена');
+      if (result.authRequired) toast('Войдите снова — сохранённые фото не потеряются');
+      if (result.error) toast('Выгрузка задерживается и будет повторена позже');
+      refreshQueueBadge();
+      if (app.screen === 'history') loadHistory();
+    });
+  return { queued: true, uploading: navigator.onLine };
+}
+async function finishWarehouse(noCargo = false) {
+  const files = [];
+  Object.entries(app.special.photos).forEach(([key, file]) =>
+    files.push([`special-${key}-${file.name || 'photo.jpg'}`, file])
+  );
+  app.pallets.forEach((p, i) =>
+    Object.entries(p.photos).forEach(([shot, file]) =>
+      files.push([`pallet-${i + 1}-${shot}-${file.name || 'photo.jpg'}`, file])
+    )
+  );
+  const data = new FormData();
+  data.set('orderId', app.order.id);
+  data.set('orderNumber', orderNumber(app.order.title));
+  data.set('orderTitle', app.order.title);
+  data.set('noCargo', String(noCargo));
+  data.set('euro', String(app.euro));
+  data.set('american', String(app.american));
+  data.set('specialB', String(app.special.b));
+  data.set('specialP', String(app.special.p));
+  files.forEach(([name, file]) => data.append('photos', file, name));
+  q('#uploading').classList.add('show');
+  try {
+    const result = await submitCheck(data);
+    const photos = noCargo ? 0 : files.length;
+    q('#summary').innerHTML =
+      `<div><span>Заказ</span><b>${orderNumber(app.order.title)}</b></div><div><span>Склад</span><b>${app.user.warehouse}</b></div><div><span>Проверил</span><b>${app.user.name}</b></div>${noCargo ? '<div><span>Результат</span><b>Товара нет</b></div>' : `<div><span>Европалеты</span><b>${app.euro}</b></div><div><span>Американские</span><b>${app.american}</b></div><div><span>Фотографии</span><b>${photos}</b></div>`}`;
+    q('.success .sub').textContent = result.uploading
+      ? 'Проверка и фотографии сохранены. Выгрузка в Bitrix24 и Telegram продолжается в фоне — можно работать дальше.'
+      : 'Интернета нет. Проверка и фотографии сохранены на телефоне и отправятся автоматически.';
+    show('success');
+    refreshQueueBadge();
+  } catch (error) {
+    toast('Не удалось сохранить фотографии на телефоне. Попробуйте ещё раз.');
+  } finally {
+    q('#uploading').classList.remove('show');
+  }
+}
+q('#finish').onclick = () => finishWarehouse(false);
+q('#again').onclick = () => location.reload();
+function toast(t) {
+  q('#toast').textContent = t;
+  q('#toast').classList.add('show');
+  setTimeout(() => q('#toast').classList.remove('show'), 2300);
+}
+function wireHelp() {
+  qa('[data-help]').forEach((b) => (b.onclick = () => q('#helpModal').classList.add('show')));
+}
+q('#closeHelp').onclick = q('#understood').onclick = () => q('#helpModal').classList.remove('show');
+q('#helpModal').onclick = (e) => {
+  if (e.target === q('#helpModal')) q('#helpModal').classList.remove('show');
+};
+q('#closeCoach').onclick = () => q('#palletCoach').remove();
+q('#loginForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const button = q('#loginButton');
+  button.disabled = true;
+  q('#authError').textContent = '';
+  try {
+    const response = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login: q('#login').value, pin: q('#pin').value }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error('Неверный логин или PIN-код');
+    startApp(data.user);
+  } catch (error) {
+    q('#authError').textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+};
+async function checkAppVersion() {
+  if (!navigator.onLine) return;
+  try {
+    const { version } = await fetch('/api/version', { cache: 'no-store' }).then((r) => r.json());
+    const previous = localStorage.getItem('akfix_app_version');
+    localStorage.setItem('akfix_app_version', version);
+    if (previous && previous !== version) {
+      if (app.screen === 'orders' || app.screen === 'history' || app.screen === 'success') {
+        location.reload();
+      } else {
+        toast('Доступно обновление. Оно установится после возврата к списку заказов.');
+      }
+    }
+  } catch {}
+}
+function startApp(user) {
+  if (user.role === 'admin') {
+    location.href = '/admin.html';
+    return;
+  }
+  if (user.role === 'driver') {
+    location.href = '/driver/';
+    return;
+  }
+  if (user.role === 'logist') {
+    location.href = '/logist/';
+    return;
+  }
+  app.user = user;
+  localStorage.setItem('akfix_last_user', JSON.stringify(user));
+  q('#auth').hidden = true;
+  q('#auth').classList.add('hidden');
+  q('#appShell').hidden = false;
+  q('#bottomNav').hidden = false;
+  const initialScreen = new URLSearchParams(location.search).get('screen') === 'history' ? 'history' : 'orders';
+  show(initialScreen);
+  renderUser();
+  wireHelp();
+  renderSpecialPhotos();
+  if (initialScreen === 'history') loadHistory();
+  else loadOrders();
+  refreshQueueBadge();
+  navigator.storage?.persist?.();
+  OfflineQueue.sync(user.login).then((result) => {
+    if (result.sent) toast(`Отправлено из очереди: ${result.sent}`);
+    if (result.authRequired) toast('Войдите снова — сохранённые проверки останутся в очереди');
+    refreshQueueBadge();
+  });
+  setInterval(() => {
+    if (app.screen === 'orders' && !document.hidden) loadOrders();
+  }, 5000);
+  checkAppVersion();
+  clearInterval(versionTimer);
+  versionTimer = setInterval(checkAppVersion, 60000);
+}
+addEventListener('online', () => {
+  if (!app.user.login) return;
+  toast('Интернет появился. Отправляем сохранённые проверки…');
+  OfflineQueue.sync(app.user.login).then((result) => {
+    if (result.sent) toast(`Успешно отправлено: ${result.sent}`);
+    refreshQueueBadge();
+    if (app.screen === 'history') loadHistory();
+  });
+});
+addEventListener('offline', () => {
+  toast('Интернет пропал. Можно продолжать работу офлайн.');
+  refreshQueueBadge();
+});
+addEventListener('offlinequeuechange', refreshQueueBadge);
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .register('/sw.js', { updateViaCache: 'none' })
+    .then((registration) => registration.update())
+    .catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (sessionStorage.getItem('akfix_reloaded')) return;
+    sessionStorage.setItem('akfix_reloaded', '1');
+    location.reload();
+  });
+  setTimeout(() => sessionStorage.removeItem('akfix_reloaded'), 5000);
+}
+setInterval(refreshPending, 5000);
+setInterval(refreshLocks, 2000);
+setInterval(() => {
+  if (app.activeLock)
+    fetch('/api/order-locks/acquire', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: app.activeLock }),
+    }).catch(() => {});
+}, 15000);
+addEventListener('pagehide', releaseOrderLock);
+setInterval(() => {
+  if (!navigator.onLine || !app.user.login) return;
+  OfflineQueue.list(app.user.login).then((items) => {
+    if (!items.length) return;
+    OfflineQueue.sync(app.user.login).then((result) => {
+      if (result.sent) {
+        toast(`Выгружено из очереди: ${result.sent}`);
+        refreshPending();
+        loadOrders();
+      }
+      refreshQueueBadge();
+    });
+  });
+}, 15000);
+const showLogin = () => {
+  if (app.user.login) return;
+  const auth = q('#auth');
+  auth.hidden = false;
+  auth.classList.remove('hidden');
+};
+async function restoreSession() {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch('/api/session', { cache: 'no-store', credentials: 'same-origin' });
+      if (response.ok) {
+        startApp((await response.json()).user);
+        return;
+      }
+    } catch {}
+    if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 450 * (attempt + 1)));
+  }
+  if (!navigator.onLine) {
+    try {
+      const user = JSON.parse(localStorage.getItem('akfix_last_user'));
+      if (user) {
+        startApp(user);
+        return;
+      }
+    } catch {}
+  }
+  showLogin();
+}
+restoreSession();

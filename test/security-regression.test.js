@@ -13,14 +13,20 @@ let tempDir;
 
 async function waitForServer() {
   for (let attempt = 0; attempt < 50; attempt += 1) {
-    try { if ((await fetch(`${BASE}/health`)).ok) return; } catch {}
-    await new Promise(resolve => setTimeout(resolve, 100));
+    try {
+      if ((await fetch(`${BASE}/health`)).ok) return;
+    } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error('SERVER_DID_NOT_START');
 }
 
 async function login(login, pin) {
-  const response = await fetch(`${BASE}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login, pin }) });
+  const response = await fetch(`${BASE}/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ login, pin }),
+  });
   assert.equal(response.status, 200);
   return response.headers.get('set-cookie').split(';', 1)[0];
 }
@@ -31,7 +37,23 @@ test.before(async () => {
     { login: 'receiver', pin: '1111', name: 'Приёмщик', warehouse: 'Балашиха', role: 'employee' },
     { login: 'driver', pin: '2222', name: 'Водитель', warehouse: '', role: 'driver' },
   ];
-  child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, PORT: String(PORT), NODE_ENV: 'production', SESSION_SECRET: 'test-secret-at-least-32-characters-long', APP_USERS_JSON: JSON.stringify(users), RECEIVING_STORAGE_FILE: path.join(tempDir, 'receiving.json'), USER_STORAGE_FILE: path.join(tempDir, 'users.json'), CHECK_STORAGE_DIR: path.join(tempDir, 'checks'), PENDING_STORAGE_FILE: path.join(tempDir, 'pending.json'), HISTORY_STORAGE_FILE: path.join(tempDir, 'history.json'), DRIVER_DELIVERY_STORAGE_FILE: path.join(tempDir, 'deliveries.json') }, stdio: 'ignore' });
+  child = spawn(process.execPath, ['server.js'], {
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      PORT: String(PORT),
+      NODE_ENV: 'production',
+      SESSION_SECRET: 'test-secret-at-least-32-characters-long',
+      APP_USERS_JSON: JSON.stringify(users),
+      RECEIVING_STORAGE_FILE: path.join(tempDir, 'receiving.json'),
+      USER_STORAGE_FILE: path.join(tempDir, 'users.json'),
+      CHECK_STORAGE_DIR: path.join(tempDir, 'checks'),
+      PENDING_STORAGE_FILE: path.join(tempDir, 'pending.json'),
+      HISTORY_STORAGE_FILE: path.join(tempDir, 'history.json'),
+      DRIVER_DELIVERY_STORAGE_FILE: path.join(tempDir, 'deliveries.json'),
+    },
+    stdio: 'ignore',
+  });
   await waitForServer();
 });
 
@@ -55,23 +77,53 @@ test('receiving requires authentication and the correct role', async () => {
 
 test('receiving data is validated and persisted on the server', async () => {
   const cookie = await login('receiver', '1111');
-  const payload = { fileName: 'приёмка.xlsx', products: [{ article: 'A1', name: 'Товар', plan: 12, pack: '12 шт' }], rows: [{ done: true, alloc: [{ qty: 12, expiry: '2027-08', cell: 'A-01', comment: 'Принято' }] }] };
-  assert.equal((await fetch(`${BASE}/api/receiving`, { method: 'PUT', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })).status, 200);
+  const payload = {
+    fileName: 'приёмка.xlsx',
+    products: [{ article: 'A1', name: 'Товар', plan: 12, pack: '12 шт' }],
+    rows: [{ done: true, alloc: [{ qty: 12, expiry: '2027-08', cell: 'A-01', comment: 'Принято' }] }],
+  };
+  assert.equal(
+    (
+      await fetch(`${BASE}/api/receiving`, {
+        method: 'PUT',
+        headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+    ).status,
+    200
+  );
   const saved = await (await fetch(`${BASE}/api/receiving`, { headers: { Cookie: cookie } })).json();
   assert.deepEqual(saved.item.products, payload.products);
   assert.deepEqual(saved.item.rows, payload.rows);
   const disk = JSON.parse(await fs.readFile(path.join(tempDir, 'receiving.json'), 'utf8'));
   assert.equal(disk.receiver.fileName, payload.fileName);
 
-  const replacement = { fileName: 'новая-приёмка.csv', products: [{ article: 'B2', name: 'Новый товар', plan: 3, pack: '' }], rows: [{ done: false, alloc: [{ qty: 3, expiry: '', cell: '', comment: '' }] }] };
-  assert.equal((await fetch(`${BASE}/api/receiving`, { method: 'PUT', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(replacement) })).status, 200);
+  const replacement = {
+    fileName: 'новая-приёмка.csv',
+    products: [{ article: 'B2', name: 'Новый товар', plan: 3, pack: '' }],
+    rows: [{ done: false, alloc: [{ qty: 3, expiry: '', cell: '', comment: '' }] }],
+  };
+  assert.equal(
+    (
+      await fetch(`${BASE}/api/receiving`, {
+        method: 'PUT',
+        headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify(replacement),
+      })
+    ).status,
+    200
+  );
   const replaced = await (await fetch(`${BASE}/api/receiving`, { headers: { Cookie: cookie } })).json();
   assert.equal(replaced.item.fileName, replacement.fileName);
   assert.deepEqual(replaced.item.products, replacement.products);
 });
 
 test('malformed JSON is rejected without stopping the service', async () => {
-  const invalid = await fetch(`${BASE}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{' });
+  const invalid = await fetch(`${BASE}/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{',
+  });
   assert.equal(invalid.status, 400);
   assert.deepEqual(await invalid.json(), { error: 'INVALID_JSON' });
   assert.equal((await fetch(`${BASE}/health`)).status, 200);
@@ -83,8 +135,14 @@ test('role APIs reject the wrong user and validate driver dates', async () => {
   assert.equal((await fetch(`${BASE}/api/driver/orders`, { headers: { Cookie: receiverCookie } })).status, 403);
   const driverCookie = await login('driver', '2222');
   assert.equal((await fetch(`${BASE}/api/logist/orders`, { headers: { Cookie: driverCookie } })).status, 403);
-  assert.equal((await fetch(`${BASE}/api/driver/orders?date=tomorrow`, { headers: { Cookie: driverCookie } })).status, 400);
-  assert.equal((await fetch(`${BASE}/api/driver/order?id=sheet-1&date=19.08.26`, { headers: { Cookie: driverCookie } })).status, 400);
+  assert.equal(
+    (await fetch(`${BASE}/api/driver/orders?date=tomorrow`, { headers: { Cookie: driverCookie } })).status,
+    400
+  );
+  assert.equal(
+    (await fetch(`${BASE}/api/driver/order?id=sheet-1&date=19.08.26`, { headers: { Cookie: driverCookie } })).status,
+    400
+  );
 });
 
 test('security headers and distinct offline navigation routes are present', async () => {
@@ -124,9 +182,10 @@ test('unauthenticated app stays hidden and role controls remain usable on mobile
 
   assert.match(indexHtml, /<main class="shell" id="appShell" hidden>/);
   assert.match(indexHtml, /<nav class="bottom-nav" id="bottomNav" hidden>/);
-  assert.match(appJs, /q\('#appShell'\)\.hidden=false;q\('#bottomNav'\)\.hidden=false/);
-  assert.match(appJs, /refreshPending\(\)\{if\(!app\.user\.login\)return/);
-  assert.match(appJs, /refreshLocks\(\)\{if\(!app\.user\.login\)return/);
+  assert.match(appJs, /q\('#appShell'\)\.hidden\s*=\s*false/);
+  assert.match(appJs, /q\('#bottomNav'\)\.hidden\s*=\s*false/);
+  assert.match(appJs, /async function refreshPending\(\).*if \(!app\.user\.login\) return/s);
+  assert.match(appJs, /async function refreshLocks\(\).*if \(!app\.user\.login\) return/s);
   assert.match(driverCss, /\.tabs button\{flex:1 1 0;min-width:0/);
   assert.match(logistHtml, /class="logout-button" aria-label="Выйти из приложения">Выйти<\/button>/);
   assert.doesNotMatch(logistHtml, />↗<\/button>/);
@@ -149,17 +208,21 @@ test('receiving is part of unified navigation and safely replaces an Excel file'
   assert.match(receivingJs, /state\.query='';state\.complete=false/);
   assert.match(receivingJs, /fetch\('\/api\/logout',\{method:'POST'\}\)/);
   assert.match(appJs, /new URLSearchParams\(location\.search\).*screen.*history/);
+  assert.match(appJs, /fetch\('\/api\/session', \{ cache: 'no-store', credentials: 'same-origin' \}\)/);
+  assert.match(appJs, /location\.assign\('\/receiving\/'\)/);
   assert.match(mainHtml, /class="app-loading" aria-label="Загрузка приложения"/);
   assert.match(mainHtml, /class="auth" id="auth" hidden/);
   assert.doesNotMatch(mainHtml, /assets\/role-router\.js/);
-  assert.match(appJs, /user\.role==='driver'.*location\.href='\/driver\/'/);
-  assert.match(appJs, /user\.role==='logist'.*location\.href='\/logist\/'/);
-  assert.match(appJs, /const showLogin=.*auth\.hidden=false/);
+  assert.match(appJs, /user\.role\s*===\s*'driver'.*location\.href\s*=\s*'\/driver\/'/s);
+  assert.match(appJs, /user\.role\s*===\s*'logist'.*location\.href\s*=\s*'\/logist\/'/s);
+  assert.match(appJs, /const showLogin[\s\S]*auth\.hidden\s*=\s*false/);
+  assert.match(appJs, /async function restoreSession\(\)/);
+  assert.match(appJs, /attempt < 3/);
   assert.match(loadingCss, /akfix-splash-out \.35s ease 2s forwards/);
   assert.match(navCss, /overscroll-behavior-y:none/);
   assert.match(navCss, /\.bottom-nav\{left:0!important;right:0!important/);
   assert.match(navCss, /@keyframes akfix-screen-enter/);
-  assert.match(appJs, /b\.classList\.add\('opening'\);await openOrder/);
+  assert.match(appJs, /b\.classList\.add\('opening'\);\s*await openOrder/);
   assert.doesNotMatch(receivingHtml, /class="app-loading"/);
 });
 
