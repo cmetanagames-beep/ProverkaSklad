@@ -134,6 +134,8 @@ test('creates delivery fields and places them after the requested anchors', asyn
     layoutCall.payload.data[1].elements.map((element) => element.name),
     ['UF_CRM_19_1751013757786', 'UF_CRM_19_DELIVERY_COMPANY_NAME']
   );
+  assert.equal(layoutCall.payload.data[0].elements[1].optionFlags, 1);
+  assert.equal(layoutCall.payload.data[1].elements[1].optionFlags, 1);
 });
 
 test('reuses delivery fields by permanent code when Bitrix omits their labels', async () => {
