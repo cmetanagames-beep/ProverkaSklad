@@ -146,9 +146,10 @@ class Application {
     const user = this.#driver(req, res); if (!user) return;
     const payload = await this.multipart.read(req);
     const orderId = String(payload.fields.orderId || '');
+    const orderNumber = String(payload.fields.orderNumber || '').trim();
     const date = String(payload.fields.date || '');
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return sendJson(res, 400, { error: 'INVALID_DATE' });
-    const row = (await this.#rowsForDriver(user, date || undefined)).find(item => item.id === orderId);
+    const row = (await this.#rowsForDriver(user, date || undefined)).find(item => item.id === orderId || (orderNumber && item.orderNumber === orderNumber));
     if (!row) return sendJson(res, 404, { error: 'ORDER_NOT_FOUND' });
     const needsPhoto = /^тк(?:\s|$)/i.test(row.delivery);
     const file = payload.files.find(item => item.name === 'expeditorPhoto') || payload.files[0];

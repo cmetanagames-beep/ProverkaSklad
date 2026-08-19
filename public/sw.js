@@ -1,8 +1,8 @@
-const CACHE = 'akfix-shell-v15';
+const CACHE = 'akfix-shell-v16';
 const ASSETS = [
   '/', '/index.html', '/assets/styles.css', '/assets/strict-ui.css', '/assets/nav-fix.css', '/assets/app.js', '/assets/offline.js',
   '/assets/role-router.js', '/assets/logo.svg', '/assets/app-loading.css', '/assets/app-loading.js', '/manifest.webmanifest',
-  '/driver/', '/driver/index.html', '/driver/driver.css', '/driver/driver-fix.css', '/driver/driver.js?v=15',
+  '/driver/', '/driver/index.html', '/driver/driver.css', '/driver/driver-fix.css', '/driver/driver.js?v=16',
   '/logist/', '/logist/index.html', '/logist/logist.css', '/logist/logist.js',
   '/admin.html', '/assets/admin.css', '/assets/admin-users.css', '/assets/admin-strict.css', '/assets/admin.js',
   '/receiving/styles.css', '/receiving/scanner.css', '/receiving/app.js', '/receiving/exceljs.min.js',
@@ -112,6 +112,7 @@ async function syncDriverUploads() {
   for (const item of (await all(driverDb(), 'queue')).filter(row => row.userLogin === current.login)) {
     const form = new FormData();
     form.set('orderId', item.order.id);
+    form.set('orderNumber', item.order.orderNumber || '');
     const date = String(item.order.date || '');
     const match = date.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
     form.set('date', match ? `${match[3]}-${match[2]}-${match[1]}` : date.slice(0, 10));

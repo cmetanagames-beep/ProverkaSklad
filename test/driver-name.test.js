@@ -1,7 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { driverNamesMatch } = require('../src/domain/driver-name');
-const { bitrixIdFromOrderNumber, normalizeSheetDate, sheetDateFromIso, moscowIsoDate } = require('../src/integrations/shipping-sheet-client');
+const {
+  bitrixIdFromOrderNumber,
+  normalizeSheetDate,
+  sheetDateFromIso,
+  moscowIsoDate,
+  shippingOrderId,
+} = require('../src/integrations/shipping-sheet-client');
 
 test('matches a short account name to the full spreadsheet name', () => {
   assert.equal(driverNamesMatch('Магомедов Шамиль', 'Магомедов Шамиль Магомедович'), true);
@@ -30,4 +36,9 @@ test('converts an ISO date to the spreadsheet date format', () => {
 test('calculates tomorrow as a valid Moscow calendar date', () => {
   assert.match(moscowIsoDate(1), /^\d{4}-\d{2}-\d{2}$/);
   assert.notEqual(moscowIsoDate(1), moscowIsoDate());
+});
+
+test('shipping order identity is stable across row moves and distinct across dates', () => {
+  assert.equal(shippingOrderId('2026-08-20', '3499', 20), shippingOrderId('2026-08-20', '3499', 99));
+  assert.notEqual(shippingOrderId('2026-08-20', '3499', 20), shippingOrderId('2026-08-21', '3499', 20));
 });

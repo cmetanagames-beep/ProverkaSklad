@@ -28,6 +28,8 @@ const isoFromSheetDate = (value) => {
   const parts = String(value || '').match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
   return parts ? `${parts[3]}-${parts[2].padStart(2, '0')}-${parts[1].padStart(2, '0')}` : moscowIsoDate();
 };
+const offlineOrderKey = (order) =>
+  `${isoFromSheetDate(order.date)}:${String(order.orderNumber || order.id || '').trim()}`;
 
 // eslint-disable-next-line no-redeclare
 const DriverOffline = {
@@ -174,7 +176,7 @@ async function loadOrders() {
     state.orders = (await DriverOffline.loadOrders(state.user.login, date)) || [];
     const queued = await DriverOffline.queued(state.user.login);
     state.orders = state.orders.map((order) => {
-      const pending = queued.find((item) => item.order.id === order.id);
+      const pending = queued.find((item) => offlineOrderKey(item.order) === offlineOrderKey(order));
       return pending ? { ...order, completed: { queued: true, completedAt: pending.createdAt } } : order;
     });
     setSyncText(
@@ -288,7 +290,9 @@ async function openOrder(id) {
       }
     } else if (!detail) detail = await DriverOffline.loadDetail(state.user.login, id);
     if (!detail) throw onlineError || new Error('NO_OFFLINE_DETAIL');
-    const pending = (await DriverOffline.queued(state.user.login)).find((item) => String(item.order.id) === String(id));
+    const pending = (await DriverOffline.queued(state.user.login)).find(
+      (item) => offlineOrderKey(item.order) === offlineOrderKey(detail.order)
+    );
     if (pending) detail.completed = { queued: true, completedAt: pending.createdAt };
     renderDetail(detail);
   } catch {
@@ -355,6 +359,7 @@ async function syncQueue() {
   for (const item of items) {
     const form = new FormData();
     form.set('orderId', item.order.id);
+    form.set('orderNumber', item.order.orderNumber || '');
     form.set('date', isoFromSheetDate(item.order.date));
     if (item.photo) form.append('expeditorPhoto', item.photo, item.photoName);
     try {
