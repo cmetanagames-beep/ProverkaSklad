@@ -374,8 +374,11 @@ async function complete(event, order) {
 
 async function syncQueue() {
   if (!navigator.onLine || !state.user) return;
-  const items = await DriverOffline.queued(state.user.login);
+  const items = (await DriverOffline.queued(state.user.login)).sort((left, right) =>
+    String(right.createdAt || '').localeCompare(String(left.createdAt || ''))
+  );
   let sent = 0;
+  let failed = 0;
   for (const item of items) {
     const form = new FormData();
     form.set('orderId', item.order.id);
@@ -387,14 +390,18 @@ async function syncQueue() {
       await DriverOffline.remove('queue', item.id);
       sent++;
     } catch {
-      break;
+      failed++;
     }
   }
   if (sent) {
-    toast(`Отправлено из очереди: ${sent}`);
     await loadOrders();
     if (state.currentOrderId) await openOrder(state.currentOrderId);
   }
+  if (failed) {
+    toast(
+      sent ? `Отправлено: ${sent}. Осталось на повтор: ${failed}` : `Не отправлено: ${failed}. Повторим автоматически.`
+    );
+  } else if (sent) toast(`Отправлено из очереди: ${sent}`);
 }
 
 $('#loginForm').onsubmit = async (event) => {
