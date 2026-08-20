@@ -51,6 +51,6 @@ class DriverDeliveryStore {
     await this.#save();
     return this.items[key];
   }
-  #save() { this.writeLock = this.writeLock.then(async () => { await fs.mkdir(path.dirname(this.file), { recursive: true }); await fs.writeFile(this.file, JSON.stringify(this.items, null, 2)); }); return this.writeLock; }
+  #save() { this.writeLock = this.writeLock.then(async () => { await fs.mkdir(path.dirname(this.file), { recursive: true }); const temp = `${this.file}.${crypto.randomUUID()}.tmp`; await fs.writeFile(temp, JSON.stringify(this.items, null, 2)); await fs.rename(temp, this.file); }); return this.writeLock; }
 }
 module.exports = { DriverDeliveryStore };
