@@ -242,6 +242,7 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   assert.match(serverAppJs, /const existing = this\.driverDeliveries\.get\(user\.login, row\.id\)/);
   assert.match(serverAppJs, /sendJson\(res, 202, \{ ok: true, accepted: true, completed \}\)/);
   assert.match(serverAppJs, /setImmediate\(\(\) => \{[\s\S]*retryPendingDriverDeliveries/);
+  assert.match(serverAppJs, /checks\.retryPending\(\)/);
   assert.match(serverAppJs, /telegramSentAt: new Date\(\)\.toISOString\(\)/);
   assert.match(driverJs, /registration\.sync\?\.register/);
   assert.match(driverJs, /serviceWorker\.addEventListener\('controllerchange'/);

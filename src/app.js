@@ -384,7 +384,8 @@ class Application {
     const payload = await this.multipart.read(req);
     try {
       const status = await this.checks.complete({ ...payload, user });
-      sendJson(res, 200, { ok: true, status });
+      sendJson(res, status.accepted ? 202 : 200, { ok: true, accepted: Boolean(status.accepted), status });
+      if (status.accepted) setImmediate(() => this.checks.retryPending().catch(error => console.error('Check processing failed:', error)));
     } catch (error) {
       const code = error.message.startsWith('TELEGRAM:') || error.message === 'TELEGRAM_NOT_CONFIGURED' ? 'TELEGRAM_UPLOAD_FAILED' : 'BITRIX_UPLOAD_FAILED';
       sendJson(res, 502, { error: code, status: error.uploadStatus || { bitrix: false, telegram: false }, message: error.message });

@@ -61,10 +61,15 @@ async function main() {
   });
   const retryDriverTelegram = () =>
     app.retryPendingDriverDeliveries().catch((error) => console.error('Driver Telegram retry failed:', error));
+  const retryChecks = () => checks.retryPending().catch((error) => console.error('Check retry failed:', error));
   const retryTimer = setInterval(retryDriverTelegram, 60000);
   retryTimer.unref();
+  const retryChecksTimer = setInterval(retryChecks, 60000);
+  retryChecksTimer.unref();
   const initialRetryTimer = setTimeout(retryDriverTelegram, 5000);
   initialRetryTimer.unref();
+  const initialChecksRetryTimer = setTimeout(retryChecks, 7000);
+  initialChecksRetryTimer.unref();
   http
     .createServer((req, res) => {
       res.setHeader(
