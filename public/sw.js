@@ -1,6 +1,6 @@
-const CACHE = 'akfix-shell-v23';
+const CACHE = 'akfix-shell-v24';
 const ASSETS = [
-  '/', '/index.html', '/assets/styles.css', '/assets/strict-ui.css', '/assets/order-status.css', '/assets/nav-fix.css', '/assets/app.js', '/assets/offline.js',
+  '/', '/index.html', '/assets/styles.css', '/assets/strict-ui.css', '/assets/order-status.css', '/assets/nav-fix.css', '/assets/app.js', '/assets/offline.js?v=24',
   '/assets/role-router.js', '/assets/logo.svg', '/assets/app-loading.css', '/assets/app-loading.js', '/manifest.webmanifest',
   '/driver/', '/driver/index.html', '/driver/driver.css', '/driver/driver-fix.css', '/driver/driver.js?v=23',
   '/logist/', '/logist/index.html', '/logist/logist.css', '/logist/logist.js',
@@ -98,7 +98,11 @@ async function syncWarehouseUploads() {
   for (const item of (await all(warehouseDb(), 'uploads')).filter(row => row.userLogin === current.login)) {
     const form = new FormData();
     Object.entries(item.fields).forEach(([key,value]) => form.set(key, value));
-    item.files.forEach(file => form.append(file.key, file.blob, file.name));
+    for (const file of item.files) {
+      const bytes = await file.blob.arrayBuffer();
+      const freshFile = new Blob([bytes], { type: file.type || file.blob.type || 'image/jpeg' });
+      form.append(file.key, freshFile, file.name);
+    }
     const response = await fetch('/api/checks/complete', { method:'POST', body:form });
     if (!response.ok) throw new Error(`UPLOAD_${response.status}`);
     await remove(warehouseDb(), 'uploads', item.id);

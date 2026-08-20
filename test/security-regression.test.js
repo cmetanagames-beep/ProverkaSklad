@@ -290,6 +290,7 @@ test('warehouse and driver lists use the same explicit status language', async (
   const statusCss = await fs.readFile(path.join(ROOT, 'public', 'assets', 'order-status.css'), 'utf8');
   const driverJs = await fs.readFile(path.join(ROOT, 'public', 'driver', 'driver.js'), 'utf8');
   const sw = await fs.readFile(path.join(ROOT, 'public', 'sw.js'), 'utf8');
+  const offlineJs = await fs.readFile(path.join(ROOT, 'public', 'assets', 'offline.js'), 'utf8');
 
   assert.match(indexHtml, /assets\/order-status\.css/);
   assert.match(appJs, /class="order-sequence"/);
@@ -302,7 +303,10 @@ test('warehouse and driver lists use the same explicit status language', async (
   assert.match(statusCss, /--status-neutral:/);
   assert.match(driverJs, /delivery-status status-neutral/);
   assert.match(driverJs, /delivery-status \$\{order\.completed\.queued \? 'status-waiting' : 'status-success'\}/);
-  assert.match(sw, /akfix-shell-v23/);
+  assert.match(sw, /akfix-shell-v24/);
+  assert.match(sw, /file\.blob\.arrayBuffer\(\)/);
+  assert.match(offlineJs, /file\.blob\.arrayBuffer\(\)/);
+  assert.match(offlineJs, /if \(navigator\.onLine\) return/);
   assert.match(sw, /const bytes = await item\.photo\.arrayBuffer\(\)/);
   assert.match(driverJs, /sort\(\(left, right\).*right\.createdAt/s);
   assert.doesNotMatch(driverJs, /catch \{\s*break;\s*\}/);
