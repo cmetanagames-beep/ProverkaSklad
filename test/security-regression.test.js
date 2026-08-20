@@ -218,7 +218,7 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   const serverAppJs = await fs.readFile(path.join(ROOT, 'src', 'app.js'), 'utf8');
   assert.match(driverHtml, /data-filter="tomorrow">Завтра</);
   assert.match(driverHtml, /src="\/assets\/logo\.svg" alt="AKFIX"/);
-  assert.match(driverHtml, /driver\.js\?v=17/);
+  assert.match(driverHtml, /driver\.js\?v=18/);
   assert.match(driverJs, /async function complete[\s\S]*await markQueued\(order, photo\)/);
   assert.match(driverJs, /Принято\. Отправляем в фоне — можно продолжать работу\./);
   assert.match(driverJs, /if \(navigator\.onLine\) \{\s*syncQueue\(\);\s*return;/);
@@ -272,7 +272,10 @@ test('warehouse and driver lists use the same explicit status language', async (
   assert.match(statusCss, /--status-neutral:/);
   assert.match(driverJs, /delivery-status status-neutral/);
   assert.match(driverJs, /delivery-status \$\{order\.completed\.queued \? 'status-waiting' : 'status-success'\}/);
-  assert.match(sw, /akfix-shell-v17/);
+  assert.match(sw, /akfix-shell-v18/);
+  assert.match(driverJs, /sort\(\(left, right\).*right\.createdAt/s);
+  assert.doesNotMatch(driverJs, /catch \{\s*break;\s*\}/);
+  assert.match(sw, /DRIVER_UPLOAD_FAILED_/);
   assert.match(sw, /assets\/order-status\.css/);
 });
 
