@@ -372,17 +372,17 @@ async function complete(event, order) {
 }
 
 async function optimizePhoto(photo) {
-  if (!photo || photo.size <= 6 * 1024 * 1024 || typeof window.createImageBitmap !== 'function') return photo;
+  if (!photo || photo.size <= 6 * 1024 * 1024) return photo;
   try {
-    const bitmap = await window.createImageBitmap(photo);
-    const scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
+    const image = await decodePhoto(photo);
+    const scale = Math.min(1, 2048 / Math.max(image.width, image.height));
     const canvas = document.createElement('canvas');
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
+    canvas.width = Math.round(image.width * scale);
+    canvas.height = Math.round(image.height * scale);
     const context = canvas.getContext('2d');
     if (!context) return photo;
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close();
+    context.drawImage(image.source, 0, 0, canvas.width, canvas.height);
+    image.close();
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
     if (!blob || blob.size >= photo.size) return photo;
     return new window.File([blob], String(photo.name || 'expeditor.jpg').replace(/\.[^.]+$/, '.jpg'), {
@@ -391,6 +391,26 @@ async function optimizePhoto(photo) {
     });
   } catch {
     return photo;
+  }
+}
+
+async function decodePhoto(photo) {
+  if (typeof window.createImageBitmap === 'function') {
+    try {
+      const bitmap = await window.createImageBitmap(photo);
+      return { source: bitmap, width: bitmap.width, height: bitmap.height, close: () => bitmap.close() };
+    } catch {
+      // Safari can reject a camera file here even though an HTML image can decode it.
+    }
+  }
+  const url = window.URL.createObjectURL(photo);
+  try {
+    const image = new window.Image();
+    image.src = url;
+    await image.decode();
+    return { source: image, width: image.naturalWidth, height: image.naturalHeight, close: () => {} };
+  } finally {
+    window.URL.revokeObjectURL(url);
   }
 }
 

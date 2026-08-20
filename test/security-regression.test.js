@@ -4,12 +4,17 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { MultipartReader } = require('../src/uploads/multipart-reader');
 
 const ROOT = path.resolve(__dirname, '..');
 const PORT = 19873;
 const BASE = `http://127.0.0.1:${PORT}`;
 let child;
 let tempDir;
+
+test('driver upload accepts a large iPhone photo before background processing', () => {
+  assert.equal(new MultipartReader().maxFileBytes, 30 * 1024 * 1024);
+});
 
 async function waitForServer() {
   for (let attempt = 0; attempt < 50; attempt += 1) {
@@ -218,11 +223,13 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   const serverAppJs = await fs.readFile(path.join(ROOT, 'src', 'app.js'), 'utf8');
   assert.match(driverHtml, /data-filter="tomorrow">Завтра</);
   assert.match(driverHtml, /src="\/assets\/logo\.svg" alt="AKFIX"/);
-  assert.match(driverHtml, /driver\.js\?v=19/);
+  assert.match(driverHtml, /driver\.js\?v=20/);
   assert.match(driverJs, /async function complete[\s\S]*await markQueued\(order, photo\)/);
   assert.match(driverJs, /Принято\. Отправляем в фоне — можно продолжать работу\./);
   assert.match(driverJs, /if \(navigator\.onLine\) syncQueue\(\)/);
   assert.match(driverJs, /async function optimizePhoto/);
+  assert.match(driverJs, /async function decodePhoto/);
+  assert.match(driverJs, /new window\.Image\(\)/);
   assert.match(driverJs, /6 \* 1024 \* 1024/);
   assert.match(driverJs, /setInterval\(\(\) => \{[\s\S]*syncQueue\(\)[\s\S]*30000/);
   assert.match(driverJs, /let queueSyncPromise = null/);
@@ -278,7 +285,7 @@ test('warehouse and driver lists use the same explicit status language', async (
   assert.match(statusCss, /--status-neutral:/);
   assert.match(driverJs, /delivery-status status-neutral/);
   assert.match(driverJs, /delivery-status \$\{order\.completed\.queued \? 'status-waiting' : 'status-success'\}/);
-  assert.match(sw, /akfix-shell-v19/);
+  assert.match(sw, /akfix-shell-v20/);
   assert.match(driverJs, /sort\(\(left, right\).*right\.createdAt/s);
   assert.doesNotMatch(driverJs, /catch \{\s*break;\s*\}/);
   assert.match(sw, /DRIVER_UPLOAD_FAILED_/);
