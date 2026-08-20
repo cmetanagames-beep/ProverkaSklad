@@ -187,12 +187,10 @@ class Application {
     if (existing?.telegramSentAt) return sendJson(res, 200, { ok: true, completed: existing });
     const photo = existing?.photo || await this.driverDeliveries.savePhoto(file);
     let completed = existing || await this.driverDeliveries.complete({ login: user.login, driverName: user.name, orderId: row.id, bitrixId: '', bitrixItems: [], order: row, completedAt: new Date().toISOString(), bitrixPending: true, hasPhoto: Boolean(file), photo, telegramPending: false });
-    if (completed.bitrixPending) completed = await this.#completeDriverBitrix(completed, file, true);
-    if (!completed.bitrixPending && file && !completed.telegramSentAt) {
-      if (!completed.telegramPending) completed = await this.driverDeliveries.complete({ ...completed, telegramPending: true });
-      completed = await this.#sendDriverTelegram(completed, file, true);
-    }
-    sendJson(res, 200, { ok: true, completed });
+    sendJson(res, 202, { ok: true, accepted: true, completed });
+    setImmediate(() => {
+      this.retryPendingDriverDeliveries().catch(error => console.error('Driver delivery processing failed:', error));
+    });
   }
 
   async retryPendingDriverDeliveries() {

@@ -218,11 +218,17 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   const serverAppJs = await fs.readFile(path.join(ROOT, 'src', 'app.js'), 'utf8');
   assert.match(driverHtml, /data-filter="tomorrow">Завтра</);
   assert.match(driverHtml, /src="\/assets\/logo\.svg" alt="AKFIX"/);
-  assert.match(driverHtml, /driver\.js\?v=18/);
+  assert.match(driverHtml, /driver\.js\?v=19/);
   assert.match(driverJs, /async function complete[\s\S]*await markQueued\(order, photo\)/);
   assert.match(driverJs, /Принято\. Отправляем в фоне — можно продолжать работу\./);
-  assert.match(driverJs, /if \(navigator\.onLine\) \{\s*syncQueue\(\);\s*return;/);
+  assert.match(driverJs, /if \(navigator\.onLine\) syncQueue\(\)/);
+  assert.match(driverJs, /async function optimizePhoto/);
+  assert.match(driverJs, /6 \* 1024 \* 1024/);
+  assert.match(driverJs, /setInterval\(\(\) => \{[\s\S]*syncQueue\(\)[\s\S]*30000/);
+  assert.match(driverJs, /let queueSyncPromise = null/);
   assert.match(serverAppJs, /const existing = this\.driverDeliveries\.get\(user\.login, row\.id\)/);
+  assert.match(serverAppJs, /sendJson\(res, 202, \{ ok: true, accepted: true, completed \}\)/);
+  assert.match(serverAppJs, /setImmediate\(\(\) => \{[\s\S]*retryPendingDriverDeliveries/);
   assert.match(serverAppJs, /telegramSentAt: new Date\(\)\.toISOString\(\)/);
   assert.match(driverJs, /registration\.sync\?\.register/);
   assert.match(driverJs, /serviceWorker\.addEventListener\('controllerchange'/);
@@ -272,7 +278,7 @@ test('warehouse and driver lists use the same explicit status language', async (
   assert.match(statusCss, /--status-neutral:/);
   assert.match(driverJs, /delivery-status status-neutral/);
   assert.match(driverJs, /delivery-status \$\{order\.completed\.queued \? 'status-waiting' : 'status-success'\}/);
-  assert.match(sw, /akfix-shell-v18/);
+  assert.match(sw, /akfix-shell-v19/);
   assert.match(driverJs, /sort\(\(left, right\).*right\.createdAt/s);
   assert.doesNotMatch(driverJs, /catch \{\s*break;\s*\}/);
   assert.match(sw, /DRIVER_UPLOAD_FAILED_/);
