@@ -139,7 +139,7 @@ function toast(text) {
 async function api(url, options) {
   const response = await fetch(url, options);
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Ошибка загрузки');
+  if (!response.ok) throw new Error(data.error || `HTTP_${response.status}`);
   return data;
 }
 
@@ -437,6 +437,7 @@ async function syncQueueOnce() {
   );
   let sent = 0;
   let failed = 0;
+  const failureReasons = new Set();
   for (const item of items) {
     const optimizedPhoto = await optimizePhoto(item.photo);
     if (optimizedPhoto && optimizedPhoto !== item.photo) {
@@ -453,8 +454,14 @@ async function syncQueueOnce() {
       await api('/api/driver/complete', { method: 'POST', body: form });
       await DriverOffline.remove('queue', item.id);
       sent++;
-    } catch {
+    } catch (error) {
       failed++;
+      const reason = String(error?.message || 'UNKNOWN_ERROR').slice(0, 80);
+      failureReasons.add(reason);
+      item.lastError = reason;
+      item.lastAttemptAt = new Date().toISOString();
+      item.attempts = Number(item.attempts || 0) + 1;
+      await DriverOffline.put('queue', item);
     }
   }
   if (sent) {
@@ -462,8 +469,11 @@ async function syncQueueOnce() {
     if (state.currentOrderId) await openOrder(state.currentOrderId);
   }
   if (failed) {
+    const reason = [...failureReasons].join(', ');
     toast(
-      sent ? `Отправлено: ${sent}. Осталось на повтор: ${failed}` : `Не отправлено: ${failed}. Повторим автоматически.`
+      sent
+        ? `Отправлено: ${sent}. Осталось: ${failed} · ${reason}`
+        : `Не отправлено: ${failed} · ${reason}. Повторим автоматически.`
     );
   } else if (sent) toast(`Отправлено из очереди: ${sent}`);
 }
