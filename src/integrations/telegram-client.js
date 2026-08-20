@@ -2,14 +2,34 @@ const fs = require('fs/promises');
 const path = require('path');
 
 class TelegramClient {
-  constructor({ token, chatId, settingsFile, preferConfiguredChat = false, confirmationText = '✅ AKFIX: Telegram-группа выбрана.' }) { this.token = token; this.chatId = chatId; this.settingsFile = settingsFile; this.preferConfiguredChat = preferConfiguredChat; this.confirmationText = confirmationText; }
-  get configured() { return Boolean(this.token && this.chatId); }
-  get selectedChatId() { return String(this.chatId || ''); }
+  constructor({
+    token,
+    chatId,
+    settingsFile,
+    preferConfiguredChat = false,
+    confirmationText = '✅ AKFIX: Telegram-группа выбрана.',
+  }) {
+    this.token = token;
+    this.chatId = chatId;
+    this.settingsFile = settingsFile;
+    this.preferConfiguredChat = preferConfiguredChat;
+    this.confirmationText = confirmationText;
+  }
+  get configured() {
+    return Boolean(this.token && this.chatId);
+  }
+  get selectedChatId() {
+    return String(this.chatId || '');
+  }
 
   async init() {
     if (!this.settingsFile) return;
-    try { const saved = JSON.parse(await fs.readFile(this.settingsFile, 'utf8')); if (saved.chatId && !this.preferConfiguredChat) this.chatId = String(saved.chatId); }
-    catch (error) { if (error.code !== 'ENOENT') throw error; }
+    try {
+      const saved = JSON.parse(await fs.readFile(this.settingsFile, 'utf8'));
+      if (saved.chatId && !this.preferConfiguredChat) this.chatId = String(saved.chatId);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
   }
 
   async listChats() {
@@ -20,14 +40,44 @@ class TelegramClient {
     const chats = new Map();
     for (const update of data.result || []) {
       const message = update.message || update.channel_post;
-      if (message?.chat && ['group','supergroup','channel'].includes(message.chat.type)) chats.set(String(message.chat.id), { id: String(message.chat.id), title: message.chat.title || 'Без названия', type: message.chat.type, current: String(message.chat.id) === String(this.chatId) });
+      if (message?.chat && ['group', 'supergroup', 'channel'].includes(message.chat.type))
+        chats.set(String(message.chat.id), {
+          id: String(message.chat.id),
+          title: message.chat.title || 'Без названия',
+          type: message.chat.type,
+          current: String(message.chat.id) === String(this.chatId),
+        });
     }
+    const selected = await this.#loadSelectedChat();
+    if (selected) chats.set(selected.id, selected);
     return [...chats.values()];
+  }
+
+  async #loadSelectedChat() {
+    if (!this.chatId) return null;
+    try {
+      const response = await fetch(
+        `https://api.telegram.org/bot${this.token}/getChat?chat_id=${encodeURIComponent(this.chatId)}`
+      );
+      const data = await response.json();
+      const chat = data.result;
+      if (!response.ok || !data.ok || !chat || !['group', 'supergroup', 'channel'].includes(chat.type)) return null;
+      return { id: String(chat.id), title: chat.title || 'Без названия', type: chat.type, current: true };
+    } catch {
+      // Новые группы из getUpdates остаются доступны, даже если ранее выбранная группа была удалена.
+      return null;
+    }
   }
 
   async selectChat(chatId) {
     this.chatId = String(chatId);
-    if (this.settingsFile) { await fs.mkdir(path.dirname(this.settingsFile), { recursive: true }); await fs.writeFile(this.settingsFile, JSON.stringify({ chatId: this.chatId, updatedAt: new Date().toISOString() })); }
+    if (this.settingsFile) {
+      await fs.mkdir(path.dirname(this.settingsFile), { recursive: true });
+      await fs.writeFile(
+        this.settingsFile,
+        JSON.stringify({ chatId: this.chatId, updatedAt: new Date().toISOString() })
+      );
+    }
     return this.#sendText(this.confirmationText);
   }
 
@@ -53,7 +103,7 @@ class TelegramClient {
       const form = new FormData();
       form.set('chat_id', this.chatId);
       form.set('caption', caption);
-      form.set('photo', new Blob([files[0].buffer], { type: files[0].mime }), files[0].filename);
+      form.set('photo', new globalThis.Blob([files[0].buffer], { type: files[0].mime }), files[0].filename);
       return this.#call('sendPhoto', form);
     }
     const form = new FormData();
@@ -61,7 +111,7 @@ class TelegramClient {
     form.set('chat_id', this.chatId);
     files.forEach((file, index) => {
       const key = `photo_${index}`;
-      form.set(key, new Blob([file.buffer], { type: file.mime }), file.filename);
+      form.set(key, new globalThis.Blob([file.buffer], { type: file.mime }), file.filename);
       media.push({ type: 'photo', media: `attach://${key}`, ...(index === 0 ? { caption } : {}) });
     });
     form.set('media', JSON.stringify(media));
