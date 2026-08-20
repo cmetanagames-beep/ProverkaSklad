@@ -35,6 +35,8 @@ const clientFromBitrixTitle = (title) =>
     .replace(/^\s*\([^)]+\)\s*/, '')
     .replace(/^АФУТ-\d+\s*/i, '')
     .trim();
+let queueSyncPromise = null;
+let queueSyncAgain = false;
 
 // eslint-disable-next-line no-redeclare
 const DriverOffline = {
@@ -343,10 +345,7 @@ async function markQueued(order, photo) {
 }
 
 function scheduleQueuedUpload() {
-  if (navigator.onLine) {
-    syncQueue();
-    return;
-  }
+  if (navigator.onLine) syncQueue();
   const ready = navigator.serviceWorker?.ready;
   if (!ready) return;
   ready
@@ -362,7 +361,7 @@ async function complete(event, order) {
   const button = $('#complete');
   button.disabled = true;
   button.textContent = 'Сохраняем…';
-  const photo = $('#photo')?.files[0] || null;
+  const photo = await optimizePhoto($('#photo')?.files[0] || null);
   try {
     await markQueued(order, photo);
   } catch {
@@ -372,7 +371,46 @@ async function complete(event, order) {
   }
 }
 
-async function syncQueue() {
+async function optimizePhoto(photo) {
+  if (!photo || photo.size <= 6 * 1024 * 1024 || typeof window.createImageBitmap !== 'function') return photo;
+  try {
+    const bitmap = await window.createImageBitmap(photo);
+    const scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const context = canvas.getContext('2d');
+    if (!context) return photo;
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
+    if (!blob || blob.size >= photo.size) return photo;
+    return new window.File([blob], String(photo.name || 'expeditor.jpg').replace(/\.[^.]+$/, '.jpg'), {
+      type: 'image/jpeg',
+      lastModified: Date.now(),
+    });
+  } catch {
+    return photo;
+  }
+}
+
+function syncQueue() {
+  if (queueSyncPromise) {
+    queueSyncAgain = true;
+    return queueSyncPromise;
+  }
+  queueSyncPromise = (async () => {
+    do {
+      queueSyncAgain = false;
+      await syncQueueOnce();
+    } while (queueSyncAgain);
+  })().finally(() => {
+    queueSyncPromise = null;
+  });
+  return queueSyncPromise;
+}
+
+async function syncQueueOnce() {
   if (!navigator.onLine || !state.user) return;
   const items = (await DriverOffline.queued(state.user.login)).sort((left, right) =>
     String(right.createdAt || '').localeCompare(String(left.createdAt || ''))
@@ -380,6 +418,12 @@ async function syncQueue() {
   let sent = 0;
   let failed = 0;
   for (const item of items) {
+    const optimizedPhoto = await optimizePhoto(item.photo);
+    if (optimizedPhoto && optimizedPhoto !== item.photo) {
+      item.photo = optimizedPhoto;
+      item.photoName = optimizedPhoto.name;
+      await DriverOffline.put('queue', item);
+    }
     const form = new FormData();
     form.set('orderId', item.order.id);
     form.set('orderNumber', item.order.orderNumber || '');
@@ -403,6 +447,10 @@ async function syncQueue() {
     );
   } else if (sent) toast(`Отправлено из очереди: ${sent}`);
 }
+
+setInterval(() => {
+  if (navigator.onLine && state.user) syncQueue();
+}, 30000);
 
 $('#loginForm').onsubmit = async (event) => {
   event.preventDefault();
