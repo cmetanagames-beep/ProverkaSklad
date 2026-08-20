@@ -1,8 +1,8 @@
-const CACHE = 'akfix-shell-v22';
+const CACHE = 'akfix-shell-v23';
 const ASSETS = [
   '/', '/index.html', '/assets/styles.css', '/assets/strict-ui.css', '/assets/order-status.css', '/assets/nav-fix.css', '/assets/app.js', '/assets/offline.js',
   '/assets/role-router.js', '/assets/logo.svg', '/assets/app-loading.css', '/assets/app-loading.js', '/manifest.webmanifest',
-  '/driver/', '/driver/index.html', '/driver/driver.css', '/driver/driver-fix.css', '/driver/driver.js?v=21',
+  '/driver/', '/driver/index.html', '/driver/driver.css', '/driver/driver-fix.css', '/driver/driver.js?v=23',
   '/logist/', '/logist/index.html', '/logist/logist.css', '/logist/logist.js',
   '/admin.html', '/assets/admin.css', '/assets/admin-users.css', '/assets/admin-strict.css', '/assets/admin.js?v=22',
   '/receiving/styles.css', '/receiving/scanner.css', '/receiving/app.js', '/receiving/exceljs.min.js',
@@ -121,7 +121,11 @@ async function syncDriverUploads() {
       const date = String(item.order.date || '');
       const match = date.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
       form.set('date', match ? `${match[3]}-${match[2]}-${match[1]}` : date.slice(0, 10));
-      if (item.photo) form.append('expeditorPhoto', item.photo, item.photoName || 'expeditor.jpg');
+      if (item.photo) {
+        const bytes = await item.photo.arrayBuffer();
+        const freshPhoto = new Blob([bytes], { type: item.photo.type || 'image/jpeg' });
+        form.append('expeditorPhoto', freshPhoto, item.photoName || 'expeditor.jpg');
+      }
       const response = await fetch('/api/driver/complete', { method:'POST', body:form });
       if (!response.ok) throw new Error(`DRIVER_UPLOAD_${response.status}`);
       await remove(driverDb(), 'queue', item.id);

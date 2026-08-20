@@ -223,7 +223,7 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   const serverAppJs = await fs.readFile(path.join(ROOT, 'src', 'app.js'), 'utf8');
   assert.match(driverHtml, /data-filter="tomorrow">Завтра</);
   assert.match(driverHtml, /src="\/assets\/logo\.svg" alt="AKFIX"/);
-  assert.match(driverHtml, /driver\.js\?v=21/);
+  assert.match(driverHtml, /driver\.js\?v=23/);
   assert.match(driverJs, /async function complete[\s\S]*await markQueued\(order, photo\)/);
   assert.match(driverJs, /Принято\. Отправляем в фоне — можно продолжать работу\./);
   assert.match(driverJs, /if \(navigator\.onLine\) syncQueue\(\)/);
@@ -235,6 +235,9 @@ test('role screens share the AKFIX visual tokens and driver tomorrow navigation'
   assert.match(driverJs, /let queueSyncPromise = null/);
   assert.match(driverJs, /failureReasons = new Set\(\)/);
   assert.match(driverJs, /item\.lastError = reason/);
+  assert.match(driverJs, /async function materializePhoto/);
+  assert.match(driverJs, /await photo\.arrayBuffer\(\)/);
+  assert.match(driverJs, /if \(navigator\.onLine\) \{\s*syncQueue\(\);\s*return;/);
   assert.match(driverJs, /HTTP_\$\{response\.status\}/);
   assert.match(serverAppJs, /const existing = this\.driverDeliveries\.get\(user\.login, row\.id\)/);
   assert.match(serverAppJs, /sendJson\(res, 202, \{ ok: true, accepted: true, completed \}\)/);
@@ -298,7 +301,8 @@ test('warehouse and driver lists use the same explicit status language', async (
   assert.match(statusCss, /--status-neutral:/);
   assert.match(driverJs, /delivery-status status-neutral/);
   assert.match(driverJs, /delivery-status \$\{order\.completed\.queued \? 'status-waiting' : 'status-success'\}/);
-  assert.match(sw, /akfix-shell-v22/);
+  assert.match(sw, /akfix-shell-v23/);
+  assert.match(sw, /const bytes = await item\.photo\.arrayBuffer\(\)/);
   assert.match(driverJs, /sort\(\(left, right\).*right\.createdAt/s);
   assert.doesNotMatch(driverJs, /catch \{\s*break;\s*\}/);
   assert.match(sw, /DRIVER_UPLOAD_FAILED_/);
