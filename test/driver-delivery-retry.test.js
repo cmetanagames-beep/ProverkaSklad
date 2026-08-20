@@ -1,7 +1,7 @@
 // @ts-check
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Application, driverRowMatches, groupDriverRows } = require('../src/app');
+const { Application, driverRowMatches, driverQueueDates, groupDriverRows } = require('../src/app');
 
 /** @param {(text: string, files: Array<unknown>) => Promise<unknown>} sendCheck */
 function setup(sendCheck) {
@@ -116,6 +116,11 @@ test('an old queued child order still resolves to its grouped shipment', () => {
 
 test('a numeric sheet order still matches the string stored in an old phone queue', () => {
   assert.equal(driverRowMatches({ id: 'new-id', orderNumber: 1231313 }, 'old-id', '1231313'), true);
+});
+
+test('a stale phone queue is retried against its embedded date and nearby working dates', () => {
+  const dates = driverQueueDates('2026-08-11', 'shipping:2026-08-20:1231313', new Date('2026-08-20T12:00:00Z'));
+  assert.deepEqual(dates, ['2026-08-11', '2026-08-20', '2026-08-19', '2026-08-21']);
 });
 
 test('one grouped receipt completes every Bitrix deal and sends one Telegram message', async () => {
