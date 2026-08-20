@@ -345,7 +345,10 @@ async function markQueued(order, photo) {
 }
 
 function scheduleQueuedUpload() {
-  if (navigator.onLine) syncQueue();
+  if (navigator.onLine) {
+    syncQueue();
+    return;
+  }
   const ready = navigator.serviceWorker?.ready;
   if (!ready) return;
   ready
@@ -439,7 +442,8 @@ async function syncQueueOnce() {
   let failed = 0;
   const failureReasons = new Set();
   for (const item of items) {
-    const optimizedPhoto = await optimizePhoto(item.photo);
+    const freshPhoto = await materializePhoto(item.photo, item.photoName);
+    const optimizedPhoto = await optimizePhoto(freshPhoto);
     if (optimizedPhoto && optimizedPhoto !== item.photo) {
       item.photo = optimizedPhoto;
       item.photoName = optimizedPhoto.name;
@@ -476,6 +480,15 @@ async function syncQueueOnce() {
         : `Не отправлено: ${failed} · ${reason}. Повторим автоматически.`
     );
   } else if (sent) toast(`Отправлено из очереди: ${sent}`);
+}
+
+async function materializePhoto(photo, name) {
+  if (!photo) return null;
+  const bytes = await photo.arrayBuffer();
+  return new window.File([bytes], name || photo.name || 'expeditor.jpg', {
+    type: photo.type || 'image/jpeg',
+    lastModified: Date.now(),
+  });
 }
 
 setInterval(() => {
