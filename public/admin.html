@@ -37,7 +37,7 @@
         <div><img src="/assets/logo.svg" alt="AKFIX" class="logo"><span class="admin-badge">АДМИН</span></div>
         <button id="logout" class="ghost">Выйти</button>
       </header>
-      <nav class="admin-tabs"><button class="active" data-tab="ordersPanel">Заказы</button><button id="logistLink">Логистика</button><button data-tab="employeesPanel">Пользователи</button><button data-tab="telegramPanel">Telegram</button></nav>
+      <nav class="admin-tabs"><button class="active" data-tab="ordersPanel">Заказы</button><button id="logistLink">Логистика</button><button data-tab="employeesPanel">Пользователи</button><button data-tab="telegramPanel">Telegram</button><button data-tab="errorsPanel">Ошибки</button></nav>
       <section id="ordersPanel">
       <div class="hero">
         <p class="eyebrow">Панель управления</p>
@@ -51,6 +51,7 @@
       </section>
       <section id="employeesPanel" class="hidden"><div class="hero employee-hero"><div><p class="eyebrow">Доступ к приложению</p><h1>Пользователи</h1><p>Сборщики, водители и логисты в одном списке.</p></div><button id="addEmployee" class="primary compact">Добавить пользователя</button></div><div id="employees" class="employees"></div></section>
       <section id="telegramPanel" class="hidden"><div class="hero"><p class="eyebrow">Каналы выгрузки</p><h1>Telegram-группы</h1><p><b>@proverka_akfixbot</b> отправляет проверку склада, <b>@akfixTN_bot</b> — экспедиторские расписки водителей.</p></div><div class="telegram-toolbar"><button id="reloadTelegram" class="ghost">Обновить список групп</button></div><div id="telegramChats" class="telegram-chats"><div class="empty">Загрузка групп…</div></div></section>
+      <section id="errorsPanel" class="hidden"><div class="hero"><p class="eyebrow">Диагностика</p><h1>Ошибки сервера</h1><p>Только технические причины без фотографий и клиентских данных.</p></div><div class="telegram-toolbar"><button id="reloadErrors" class="ghost">Обновить ошибки</button></div><div id="serverErrors" class="employees"><div class="empty">Загрузка ошибок…</div></div></section>
     </section>
   </main>
 
@@ -66,6 +67,6 @@
   </dialog>
   <dialog id="employeeDialog"><form id="employeeForm"><div class="dialog-head"><div><small>Учётная запись</small><h2 id="employeeDialogTitle">Новый пользователь</h2></div><button type="button" id="closeEmployee" class="icon-button">Закрыть</button></div><section class="employee-form"><input type="hidden" id="employeeId"><label>Логин<input id="employeeLogin" required placeholder="Например, Иван"></label><label>Имя пользователя<input id="employeeName" required placeholder="Иван"></label><label>Роль<select id="employeeRole"><option value="employee">Сборщик</option><option value="driver">Водитель</option><option value="logist">Логист</option></select></label><label id="warehouseField">Склад<select id="employeeWarehouse"><option>Балашиха</option><option>Мытищи</option></select></label><label id="sheetDriverField" class="hidden">Имя в таблице «Отгрузки»<input id="employeeSheetDriverName" list="sheetDriverNames" placeholder="Выберите или вставьте точное ФИО"><datalist id="sheetDriverNames"></datalist><small>Это постоянная привязка аккаунта к значению столбца «Водитель».</small></label><label>Новый PIN-код<input id="employeePin" type="password" inputmode="numeric" pattern="[0-9]{4,12}" placeholder="4–12 цифр"></label><p class="form-note" id="pinNote">Для нового пользователя PIN обязателен.</p><button class="primary" type="submit">Сохранить</button></section></form></dialog>
   <div id="toast" role="status"></div>
-  <script src="/assets/admin.js" defer></script>
+  <script src="/assets/admin.js?v=22" defer></script>
 </body>
 </html>

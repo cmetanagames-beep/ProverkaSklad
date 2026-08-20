@@ -266,6 +266,8 @@ test('unauthenticated app stays hidden and role controls remain usable on mobile
   assert.match(driverCss, /\.tabs button\{flex:1 1 0;min-width:0/);
   assert.match(adminHtml, /id="resetDriverForm"/);
   assert.match(adminJs, /\/api\/admin\/driver\/reset/);
+  assert.match(adminHtml, /data-tab="errorsPanel">Ошибки/);
+  assert.match(adminJs, /\/api\/admin\/server-errors/);
   assert.match(logistHtml, /class="logout-button" aria-label="Выйти из приложения">Выйти<\/button>/);
   assert.doesNotMatch(logistHtml, />↗<\/button>/);
 });
@@ -296,7 +298,7 @@ test('warehouse and driver lists use the same explicit status language', async (
   assert.match(statusCss, /--status-neutral:/);
   assert.match(driverJs, /delivery-status status-neutral/);
   assert.match(driverJs, /delivery-status \$\{order\.completed\.queued \? 'status-waiting' : 'status-success'\}/);
-  assert.match(sw, /akfix-shell-v21/);
+  assert.match(sw, /akfix-shell-v22/);
   assert.match(driverJs, /sort\(\(left, right\).*right\.createdAt/s);
   assert.doesNotMatch(driverJs, /catch \{\s*break;\s*\}/);
   assert.match(sw, /DRIVER_UPLOAD_FAILED_/);
