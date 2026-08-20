@@ -134,7 +134,7 @@ class BitrixClient {
         id: Number(orderId),
         fields: { [photoField]: [[file.filename, file.buffer.toString('base64')]] },
       });
-    await this.moveToDriverShipped(orderId);
+    await this.moveToAcceptedVerification(orderId);
   }
 
   async ensureDeliveryFields() {

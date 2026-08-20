@@ -54,11 +54,17 @@ test('does not accept a different account number returned by Bitrix', async () =
   await assert.rejects(() => client.findItemByOrderNumber('3424'), /BITRIX_ORDER_NOT_FOUND: АФУТ-003424/);
 });
 
-test('driver completion saves the receipt without a timeline comment and moves the deal to Груз отправлен', async () => {
+test('driver completion saves the receipt without a timeline comment and moves the deal to Принято на проверку', async () => {
   const client = new BitrixClient('https://example.test');
   const calls = [];
   client.call = async (method, payload) => {
     calls.push({ method, payload });
+    if (method === 'crm.status.list')
+      return [
+        { NAME: 'Передан на сборку', STATUS_ID: 'DT1052_31:PREPARATION' },
+        { NAME: 'Принято на проверку', STATUS_ID: 'DT1052_31:ACCEPTED_CHECK' },
+        { NAME: 'Груз отправлен', STATUS_ID: 'DT1052_31:SUCCESS' },
+      ];
     return {};
   };
 
@@ -82,8 +88,12 @@ test('driver completion saves the receipt without a timeline comment and moves t
     },
   });
   assert.deepEqual(calls[1], {
+    method: 'crm.status.list',
+    payload: { filter: { ENTITY_ID: 'DYNAMIC_1052_STAGE_31' } },
+  });
+  assert.deepEqual(calls[2], {
     method: 'crm.item.update',
-    payload: { entityTypeId: 1052, id: 8622, fields: { stageId: 'DT1052_31:SUCCESS' } },
+    payload: { entityTypeId: 1052, id: 8622, fields: { stageId: 'DT1052_31:ACCEPTED_CHECK' } },
   });
 });
 
