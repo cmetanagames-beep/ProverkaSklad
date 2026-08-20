@@ -178,7 +178,11 @@ class Application {
     const orderNumber = String(payload.fields.orderNumber || '').trim();
     const date = String(payload.fields.date || '');
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return sendJson(res, 400, { error: 'INVALID_DATE' });
-    const row = (await this.#rowsForDriver(user, date || undefined)).find(item => driverRowMatches(item, orderId, orderNumber));
+    let row = null;
+    for (const candidateDate of driverQueueDates(date, orderId)) {
+      row = (await this.#rowsForDriver(user, candidateDate)).find(item => driverRowMatches(item, orderId, orderNumber));
+      if (row) break;
+    }
     if (!row) return sendJson(res, 404, { error: 'ORDER_NOT_FOUND' });
     const needsPhoto = /^тк(?:\s|$)/i.test(row.delivery);
     const file = payload.files.find(item => item.name === 'expeditorPhoto') || payload.files[0];
@@ -609,6 +613,19 @@ function splitOrderNumbers(value) {
     .filter(Boolean);
 }
 
+function driverQueueDates(date, orderId, now = new Date()) {
+  const embeddedDate = String(orderId || '').match(/shipping:(\d{4}-\d{2}-\d{2}):/)?.[1] || '';
+  const offsets = [-1, 0, 1].map(offset =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Moscow',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(now.getTime() + offset * 86400000))
+  );
+  return [...new Set([date, embeddedDate, ...offsets].filter(value => /^\d{4}-\d{2}-\d{2}$/.test(value)))];
+}
+
 function clientNameFromBitrixTitle(title) {
   return String(title || '')
     .replace(/^\s*\([^)]+\)\s*/, '')
@@ -616,4 +633,4 @@ function clientNameFromBitrixTitle(title) {
     .trim();
 }
 
-module.exports = { Application, driverRowMatches, groupDriverRows };
+module.exports = { Application, driverRowMatches, driverQueueDates, groupDriverRows };
