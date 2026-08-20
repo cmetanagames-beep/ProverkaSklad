@@ -23,12 +23,15 @@ class Application {
     this.orderLocks = new Map();
     this.driverBitrixLocks = new Map();
     this.driverTelegramLocks = new Map();
+    this.recentErrors = [];
     this.version = process.env.APP_VERSION || `${Date.now()}`;
   }
 
   async handle(req, res) {
+    let requestPath = '';
     try {
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      requestPath = url.pathname;
       if (url.pathname === '/health') return this.#health(res);
       if (url.pathname === '/api/version' && req.method === 'GET') return sendJson(res, 200, { version: this.version }, { 'Cache-Control': 'no-store' });
       if (url.pathname === '/api/session' && req.method === 'GET') return await this.#session(req, res);
@@ -68,6 +71,7 @@ class Application {
       if (url.pathname === '/api/admin/telegram/expeditor/select' && req.method === 'POST') return await this.#adminTelegramExpeditorSelect(req, res);
       if (url.pathname === '/api/admin/bitrix/ensure-delivery-fields' && req.method === 'POST') return await this.#adminEnsureDeliveryFields(req, res);
       if (url.pathname === '/api/admin/driver/reset' && req.method === 'POST') return await this.#adminResetDriverDelivery(req, res);
+      if (url.pathname === '/api/admin/server-errors' && req.method === 'GET') return this.#adminServerErrors(req, res);
       if (url.pathname.startsWith('/api/bitrix/') && req.method === 'POST') return await this.#proxyBitrix(req, res, url.pathname.slice('/api/bitrix/'.length));
       if (url.pathname === '/receiving') { res.writeHead(308, { Location: '/receiving/' }); return res.end(); }
       if (url.pathname === '/receiving-test') { res.writeHead(308, { Location: '/receiving-test/' }); return res.end(); }
@@ -76,11 +80,24 @@ class Application {
       const isInvalidJson = error instanceof SyntaxError;
       const status = isInvalidJson ? 400 : ['BODY_TOO_LARGE','PHOTO_TOO_LARGE'].includes(error.message) ? 413 : 500;
       if (status === 500) console.error(error);
+      if (status === 500) {
+        this.recentErrors.unshift({
+          at: new Date().toISOString(),
+          path: requestPath,
+          code: String(error?.code || ''),
+          message: String(error?.message || error || 'UNKNOWN_ERROR').slice(0, 300),
+        });
+        this.recentErrors = this.recentErrors.slice(0, 20);
+      }
       sendJson(res, status, { error: isInvalidJson ? 'INVALID_JSON' : status === 500 ? 'SERVER_ERROR' : error.message });
     }
   }
 
   #health(res) { sendJson(res, 200, { ok: true, bitrixConfigured: this.bitrix.configured, telegramConfigured: this.checks.telegram.configured, telegramExpeditorConfigured: this.telegramExpeditor.configured }); }
+  #adminServerErrors(req, res) {
+    const user = this.#admin(req, res);
+    if (user) sendJson(res, 200, { items: this.recentErrors }, { 'Cache-Control': 'no-store' });
+  }
   #user(req, res) { const user = this.sessions.userFromRequest(req); if (!user) sendJson(res, 401, { error: 'AUTH_REQUIRED' }); return user; }
   #admin(req, res) { const user = this.#user(req, res); if (!user) return null; if ((user.role || 'employee') !== 'admin') { sendJson(res, 403, { error: 'ADMIN_REQUIRED' }); return null; } return user; }
   #session(req, res) { const user = this.#user(req, res); if (user) sendJson(res, 200, { user: this.sessions.publicUser(user) }); }

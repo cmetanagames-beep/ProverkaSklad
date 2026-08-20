@@ -270,6 +270,14 @@ test('unauthenticated app stays hidden and role controls remain usable on mobile
   assert.doesNotMatch(logistHtml, />↗<\/button>/);
 });
 
+test('server error diagnostics omit request contents and require the admin route', async () => {
+  const serverAppJs = await fs.readFile(path.join(ROOT, 'src', 'app.js'), 'utf8');
+  assert.match(serverAppJs, /\/api\/admin\/server-errors/);
+  assert.match(serverAppJs, /#adminServerErrors\(req, res\)/);
+  assert.match(serverAppJs, /this\.recentErrors = this\.recentErrors\.slice\(0, 20\)/);
+  assert.doesNotMatch(serverAppJs, /recentErrors[\s\S]{0,200}(?:body|photo|buffer):/);
+});
+
 test('warehouse and driver lists use the same explicit status language', async () => {
   const indexHtml = await fs.readFile(path.join(ROOT, 'public', 'index.html'), 'utf8');
   const appJs = await fs.readFile(path.join(ROOT, 'public', 'assets', 'app.js'), 'utf8');
