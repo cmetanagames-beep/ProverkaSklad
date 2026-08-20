@@ -110,7 +110,12 @@ test('an old queued child order still resolves to its grouped shipment', () => {
     orders: [{ orderNumber: '3289' }, { orderNumber: '3500' }, { orderNumber: '3297' }],
   };
   assert.equal(driverRowMatches(group, 'old-sheet-id', '3500'), true);
+  assert.equal(driverRowMatches(group, 'old-group-id', '3289, 3500, 3297'), true);
   assert.equal(driverRowMatches(group, 'old-sheet-id', '4000'), false);
+});
+
+test('a numeric sheet order still matches the string stored in an old phone queue', () => {
+  assert.equal(driverRowMatches({ id: 'new-id', orderNumber: 1231313 }, 'old-id', '1231313'), true);
 });
 
 test('one grouped receipt completes every Bitrix deal and sends one Telegram message', async () => {

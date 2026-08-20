@@ -596,8 +596,17 @@ function groupDriverRows(rows) {
 function driverRowMatches(row, orderId, orderNumber) {
   if (row.id === orderId) return true;
   if (!orderNumber) return false;
-  if (row.orderNumber === orderNumber) return true;
-  return Array.isArray(row.orders) && row.orders.some(item => String(item.orderNumber || '') === orderNumber);
+  const queuedNumbers = splitOrderNumbers(orderNumber);
+  const currentNumbers = [row.orderNumber, ...(Array.isArray(row.orders) ? row.orders.map(item => item.orderNumber) : [])]
+    .flatMap(splitOrderNumbers);
+  return queuedNumbers.some(number => currentNumbers.includes(number));
+}
+
+function splitOrderNumbers(value) {
+  return String(value || '')
+    .split(',')
+    .map(number => number.trim())
+    .filter(Boolean);
 }
 
 function clientNameFromBitrixTitle(title) {
