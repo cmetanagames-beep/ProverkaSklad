@@ -45,6 +45,7 @@ async function main() {
   const receiving = new ReceivingStore(config.receivingStorageFile);
   await receiving.init();
   const checks = new CheckService({ bitrix, telegram, pendingChecks, history });
+  checks.start();
   const app = new Application({
     publicDir: config.publicDir,
     receivingTestDir: config.receivingTestDir,

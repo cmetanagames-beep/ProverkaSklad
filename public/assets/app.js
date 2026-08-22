@@ -362,7 +362,7 @@ function historyCard(item, queued = false) {
   const result = item.noCargo
     ? 'Товара нет'
     : `${item.palletTotal ?? Number(item.fields?.euro || 0) + Number(item.fields?.american || 0)} палет`;
-  return `<article class="history-item ${queued ? 'queued' : ''}"><h3>${displayOrderTitle(item.orderTitle || item.fields?.orderTitle || item.orderNumber || 'Заказ')}</h3><p>${item.warehouse || app.user.warehouse} · ${result}</p><div class="history-meta"><span>${date}</span><span class="history-status">${queued ? 'Ожидает интернета' : item.status === 'completed' ? 'Выгружено' : 'Ожидает второй склад'}</span></div></article>`;
+  return `<article class="history-item ${queued ? 'queued' : ''}"><h3>${displayOrderTitle(item.orderTitle || item.fields?.orderTitle || item.orderNumber || 'Заказ')}</h3><p>${item.phase === 'combined' ? 'Объединённый груз' : item.warehouse || app.user.warehouse} · ${result}</p><div class="history-meta"><span>${date}</span><span class="history-status">${queued ? 'Ожидает интернета' : item.status === 'completed' ? 'Выгружено' : 'Отправляется'}</span></div></article>`;
 }
 function pendingCard(item) {
   const date = new Date(item.savedAt).toLocaleString('ru-RU', {
@@ -371,7 +371,15 @@ function pendingCard(item) {
     hour: '2-digit',
     minute: '2-digit',
   });
-  return `<article class="history-item waiting"><h3>${displayOrderTitle(item.orderTitle || item.orderNumber || 'Заказ')}</h3><p><b>${item.completedWarehouse}</b>: ${item.employee} — готово</p><p><b>${item.waitingFor}</b>: ожидает проверку сотрудника</p><div class="history-meta"><span>${date}</span><span class="history-status">Ожидает ${item.waitingFor}</span></div></article>`;
+  const status = item.requiresCombined
+    ? 'Нужно сфотографировать объединённый груз'
+    : item.failed
+      ? 'Временная ошибка — сервер повторит отправку'
+      : item.uploading
+        ? 'Отправляется в Bitrix24 и Telegram'
+        : 'Выгружено';
+  const kind = item.failed || item.uploading || item.requiresCombined ? 'waiting' : 'ready';
+  return `<article class="history-item ${kind}"><h3>${displayOrderTitle(item.orderTitle || item.orderNumber || 'Заказ')}</h3><p><b>${item.completedWarehouse}</b>: ${item.employee}</p><p>${status}</p><div class="history-meta"><span>${date}</span><span class="history-status">${item.waitingFor}</span></div></article>`;
 }
 async function loadHistory() {
   q('#historyList').innerHTML = '<div class="empty">Загрузка истории…</div>';
@@ -391,7 +399,7 @@ async function loadHistory() {
   } catch {}
   q('#pendingList').innerHTML =
     pending.map(pendingCard).join('') ||
-    '<div class="empty compact-empty"><b>Нет заказов в ожидании</b><small>Здесь появятся заказы, которые уже проверил один склад.</small></div>';
+    '<div class="empty compact-empty"><b>Нет активных выгрузок</b><small>Здесь появятся отправки складов и объединённого груза.</small></div>';
   q('#historyList').innerHTML =
     [
       ...queued.map((x) => historyCard({ ...x, noCargo: x.fields.noCargo === 'true' }, true)),
@@ -453,7 +461,7 @@ q('#listSwitch').onclick = logout;
 q('#noCargoEarly').onchange = (e) => {
   app.noCargo = e.target.checked;
   q('#specialContent').hidden = app.noCargo;
-  q('#toSetup').textContent = app.noCargo ? 'Выгрузить «Товара нет»' : 'Продолжить';
+  q('#toSetup').textContent = app.noCargo ? 'Завершить без выгрузки' : 'Продолжить';
   validateSpecial();
 };
 qa('[data-count]').forEach(
@@ -560,6 +568,7 @@ async function finishWarehouse(noCargo = false) {
   data.set('orderId', app.order.id);
   data.set('orderNumber', orderNumber(app.order.title));
   data.set('orderTitle', app.order.title);
+  data.set('phase', app.phase);
   data.set('noCargo', String(noCargo));
   data.set('euro', String(app.euro));
   data.set('american', String(app.american));
@@ -572,9 +581,11 @@ async function finishWarehouse(noCargo = false) {
     const photos = noCargo ? 0 : files.length;
     q('#summary').innerHTML =
       `<div><span>Заказ</span><b>${orderNumber(app.order.title)}</b></div><div><span>Склад</span><b>${app.user.warehouse}</b></div><div><span>Проверил</span><b>${app.user.name}</b></div>${noCargo ? '<div><span>Результат</span><b>Товара нет</b></div>' : `<div><span>Европалеты</span><b>${app.euro}</b></div><div><span>Американские</span><b>${app.american}</b></div><div><span>Фотографии</span><b>${photos}</b></div>`}`;
-    q('.success .sub').textContent = result.uploading
-      ? 'Проверка и фотографии сохранены. Выгрузка в Bitrix24 и Telegram продолжается в фоне — можно работать дальше.'
-      : 'Интернета нет. Проверка и фотографии сохранены на телефоне и отправятся автоматически.';
+    q('.success .sub').textContent = noCargo
+      ? 'Проверка сохранена. Товара нет — фотографии в Bitrix24 и Telegram не отправляются.'
+      : result.uploading
+        ? 'Проверка и фотографии сохранены. Выгрузка в Bitrix24 и Telegram продолжается в фоне — можно работать дальше.'
+        : 'Интернета нет. Проверка и фотографии сохранены на телефоне и отправятся автоматически.';
     show('success');
     refreshQueueBadge();
   } catch (error) {

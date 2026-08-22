@@ -1,71 +1,183 @@
+// @ts-check
+
+const STAGE_BY_WAREHOUSE = { Мытищи: 'mytishchi', Балашиха: 'balashikha' };
+
+/** @typedef {{orderId:string, orderNumber:string, orderTitle?:string, phase?:string, noCargo:string, euro?:string, american?:string, specialB?:string, specialP?:string}} CheckFields */
+/** @typedef {{filename:string, mime:string, buffer:Buffer}} CheckFile */
+/** @typedef {{login:string, name:string, warehouse:'Мытищи'|'Балашиха'}} CheckUser */
+/** @typedef {{orderId:string, stage:string, delivery:{nextAttemptAt?:string}}} CheckJob */
+
 class CheckService {
-  constructor({ bitrix, telegram, pendingChecks, history }) {
+  /** @param {{bitrix:any, telegram:any, pendingChecks:any, history:any, retryMs?:number, concurrency?:number}} options */
+  constructor({ bitrix, telegram, pendingChecks, history, retryMs = 30000, concurrency = 3 }) {
     this.bitrix = bitrix;
     this.telegram = telegram;
     this.pendingChecks = pendingChecks;
     this.history = history;
-    this.finalizing = new Map();
+    this.retryMs = retryMs;
+    this.concurrency = concurrency;
+    this.processing = new Map();
+    this.queueRun = null;
+    this.queueRequested = false;
+    this.retryTimer = null;
   }
 
-  pending() { return this.pendingChecks.listPending(); }
-  status(orderId) { return this.pendingChecks.status(orderId); }
+  start() {
+    if (this.retryTimer) return;
+    this.retryTimer = setInterval(
+      () => this.processQueue().catch((error) => console.error('Check queue failed:', error)),
+      this.retryMs
+    );
+    this.retryTimer.unref();
+    const initial = setTimeout(
+      () => this.processQueue().catch((error) => console.error('Initial check queue failed:', error)),
+      3000
+    );
+    initial.unref();
+  }
 
+  pending() {
+    return this.pendingChecks.listPending();
+  }
+  /** @param {string} orderId */
+  status(orderId) {
+    return this.pendingChecks.status(orderId);
+  }
+
+  /** @param {{fields:CheckFields, files:CheckFile[], user:CheckUser}} input */
   async complete({ fields, files, user }) {
     const before = await this.pendingChecks.loadPair(fields.orderId);
-    if (user.warehouse === 'Балашиха' && before['Мытищи'] && before['Балашиха'] && before['Мытищи'].fields.noCargo !== 'true' && !before.combined) fields.phase = 'combined';
+    fields.phase = await this.#resolvePhase(fields, files, user, before);
     this.#validate(fields, files);
-    if (fields.phase === 'combined' && (!before['Мытищи'] || !before['Балашиха'] || before['Мытищи'].fields.noCargo === 'true')) throw new Error('COMBINED_NOT_REQUIRED');
+    if (
+      fields.phase === 'combined' &&
+      (!before['Мытищи'] ||
+        !before['Балашиха'] ||
+        before['Мытищи'].fields.noCargo === 'true' ||
+        before['Балашиха'].fields.noCargo === 'true')
+    )
+      throw new Error('COMBINED_NOT_REQUIRED');
+    const stage = fields.phase === 'combined' ? 'combined' : STAGE_BY_WAREHOUSE[user.warehouse];
     await this.pendingChecks.save({ fields, files, user });
     await this.history.upsert(fields, user, 'waiting');
-    const pair = await this.pendingChecks.loadPair(fields.orderId);
-    const waitingFor = ['Мытищи','Балашиха'].find(warehouse => !pair[warehouse]);
-    if (waitingFor) return { pending: true, completed: false, savedWarehouse: user.warehouse, waitingFor };
-    if (pair['Мытищи'].fields.noCargo !== 'true' && !pair.combined) return { pending: true, completed: false, requiresCombined: true, savedWarehouse: user.warehouse, waitingFor: 'Объединение на Балашихе' };
-
-    const key = String(fields.orderId);
-    if (!this.finalizing.has(key)) this.finalizing.set(key, this.#finalize(key, pair).finally(() => this.finalizing.delete(key)));
-    return this.finalizing.get(key);
+    this.processQueue().catch((error) => console.error('Check queue failed:', error));
+    return { queued: true, completed: false, stage, noCargo: fields.noCargo === 'true' };
   }
 
-  async #finalize(orderId, pair) {
-    const status = { pending: false, completed: false, bitrix: false, telegram: false, stageChanged: false };
-    for (const warehouse of ['Балашиха', 'Мытищи']) {
-      const check = pair[warehouse];
-      if (check.fields.noCargo === 'true') await this.bitrix.clearWarehousePhotos({ orderId, warehouse });
-      else await this.bitrix.updateWarehousePhotos({ orderId, warehouse, files: check.files });
+  /** @param {CheckFields} fields @param {CheckFile[]} files @param {CheckUser} user @param {any} before */
+  async #resolvePhase(fields, files, user, before) {
+    if (fields.phase) {
+      if (!['warehouse', 'combined'].includes(fields.phase)) throw new Error('INVALID_CHECK_PHASE');
+      return fields.phase;
     }
-    if (pair.combined) await this.bitrix.updateCombinedPhotos({ orderId, files: pair.combined.files });
-    const finalChecks = pair.combined ? [pair.combined] : [pair['Мытищи'], pair['Балашиха']];
-    const finalCounts = finalChecks.reduce((result, check) => {
-      if (!check || check.fields.noCargo === 'true') return result;
-      result.euro += Number(check.fields.euro || 0);
-      result.american += Number(check.fields.american || 0);
-      return result;
-    }, { euro: 0, american: 0 });
-    await this.bitrix.updateFinalPalletCount({ orderId, ...finalCounts });
-    status.bitrix = true;
-    try {
-      const checks = ['Балашиха', 'Мытищи'].map(warehouse => pair[warehouse]);
-      const text = checks.map(check => this.#buildText(check.fields, check.user)).join('\n\n');
-      const warehouseFiles = [...pair['Мытищи'].files, ...pair['Балашиха'].files];
-      await this.telegram.sendCheck(text, warehouseFiles);
-      if (pair.combined) {
-        const total = Number(pair.combined.fields.euro || 0) + Number(pair.combined.fields.american || 0);
-        await this.telegram.sendCheck(`ОБЪЕДИНЁННЫЙ ГРУЗ\nЗаказ: ${pair.combined.fields.orderTitle || pair.combined.fields.orderNumber}\nОбъединил: ${pair.combined.user.name}\nЕвропалеты: ${pair.combined.fields.euro || 0}\nАмериканские палеты: ${pair.combined.fields.american || 0}\nВсего палет: ${total}`, pair.combined.files);
+    const canBeLegacyCombined =
+      user.warehouse === 'Балашиха' &&
+      before['Мытищи']?.fields.noCargo !== 'true' &&
+      before['Балашиха']?.fields.noCargo !== 'true' &&
+      before['Мытищи'] &&
+      before['Балашиха'] &&
+      !before.combined;
+    if (!canBeLegacyCombined) return 'warehouse';
+    const duplicate = await this.pendingChecks.matches(
+      fields.orderId,
+      'balashikha',
+      { ...fields, phase: 'warehouse' },
+      files
+    );
+    return duplicate ? 'warehouse' : 'combined';
+  }
+
+  async processQueue() {
+    if (this.queueRun) {
+      this.queueRequested = true;
+      return this.queueRun;
+    }
+    this.queueRun = (async () => {
+      do {
+        this.queueRequested = false;
+        await this.#drain();
+      } while (this.queueRequested);
+    })().finally(() => {
+      this.queueRun = null;
+    });
+    return this.queueRun;
+  }
+
+  async #drain() {
+    const now = Date.now();
+    /** @type {CheckJob[]} */
+    const jobs = (await this.pendingChecks.listJobs()).filter(
+      (/** @type {CheckJob} */ job) => !job.delivery.nextAttemptAt || Date.parse(job.delivery.nextAttemptAt) <= now
+    );
+    let index = 0;
+    const worker = async () => {
+      while (index < jobs.length) {
+        const job = jobs[index++];
+        await this.#run(job).catch(() => {});
       }
-      status.telegram = true;
-      await this.bitrix.moveToAcceptedVerification(orderId);
-      status.stageChanged = true;
-      status.completed = true;
-      await this.history.markOrderCompleted(orderId, checks.map(check => check.user));
-      await this.pendingChecks.clear(orderId);
-      return status;
+    };
+    await Promise.all(Array.from({ length: Math.min(this.concurrency, jobs.length) }, worker));
+  }
+
+  /** @param {CheckJob} job */
+  async #run(job) {
+    const key = `${job.orderId}:${job.stage}`;
+    if (this.processing.has(key)) return this.processing.get(key);
+    const promise = this.#deliver(job).finally(() => this.processing.delete(key));
+    this.processing.set(key, promise);
+    return promise;
+  }
+
+  /** @param {CheckJob} job */
+  async #deliver({ orderId, stage }) {
+    const check = await this.pendingChecks.loadStage(orderId, stage);
+    if (!check || check.delivery?.completed) return;
+    const delivery = { bitrix: false, telegram: false, stageChanged: false, attempts: 0, ...(check.delivery || {}) };
+    try {
+      if (check.fields.noCargo === 'true') {
+        await this.pendingChecks.updateDelivery(orderId, stage, { completed: true, skipped: true, error: null });
+        await this.history.markCheckCompleted(orderId, check.user, check.fields.phase);
+        return;
+      }
+      if (!delivery.bitrix) {
+        if (stage === 'combined') {
+          await this.bitrix.updateCombinedPhotos({ orderId, files: check.files });
+          await this.bitrix.updateFinalPalletCount({
+            orderId,
+            euro: check.fields.euro,
+            american: check.fields.american,
+          });
+        } else {
+          await this.bitrix.updateWarehousePhotos({ orderId, warehouse: check.user.warehouse, files: check.files });
+        }
+        delivery.bitrix = true;
+        await this.pendingChecks.updateDelivery(orderId, stage, { bitrix: true, error: null });
+      }
+      if (!delivery.telegram) {
+        await this.telegram.sendCheck(this.#buildText(check.fields, check.user, stage), check.files);
+        delivery.telegram = true;
+        await this.pendingChecks.updateDelivery(orderId, stage, { telegram: true, error: null });
+      }
+      if (stage === 'combined' && !delivery.stageChanged) {
+        await this.bitrix.moveToAcceptedVerification(orderId);
+        delivery.stageChanged = true;
+        await this.pendingChecks.updateDelivery(orderId, stage, { stageChanged: true, error: null });
+      }
+      await this.pendingChecks.updateDelivery(orderId, stage, { completed: true, error: null, nextAttemptAt: null });
+      await this.history.markCheckCompleted(orderId, check.user, check.fields.phase);
     } catch (error) {
-      error.uploadStatus = status;
+      const attempts = Number(delivery.attempts || 0) + 1;
+      const delay = Math.min(15 * 60 * 1000, 15000 * 2 ** Math.min(attempts - 1, 6));
+      await this.pendingChecks.updateDelivery(orderId, stage, {
+        attempts,
+        error: error instanceof Error ? error.message : String(error),
+        nextAttemptAt: new Date(Date.now() + delay).toISOString(),
+      });
       throw error;
     }
   }
 
+  /** @param {CheckFields} fields @param {CheckFile[]} files */
   #validate(fields, files) {
     if (!fields.orderId || !fields.orderNumber) throw new Error('INVALID_CHECK');
     if (fields.noCargo !== 'true' && !files.length) throw new Error('PHOTOS_REQUIRED');
@@ -73,17 +185,29 @@ class CheckService {
       const palletCount = Number(fields.euro || 0) + Number(fields.american || 0);
       const requiredShots = new Set(['side1', 'side2', 'top']);
       for (let pallet = 1; pallet <= palletCount; pallet++) {
-        const present = new Set(files.map(file => file.filename.match(new RegExp(`^pallet-${pallet}-(side1|side2|top)-`))?.[1]).filter(Boolean));
-        if ([...requiredShots].some(shot => !present.has(shot))) throw new Error(`PALLET_PHOTOS_INCOMPLETE:${pallet}`);
+        const present = new Set(
+          files
+            .map((file) => file.filename.match(new RegExp(`^pallet-${pallet}-(side1|side2|top)-`))?.[1])
+            .filter(Boolean)
+        );
+        if ([...requiredShots].some((shot) => !present.has(shot)))
+          throw new Error(`PALLET_PHOTOS_INCOMPLETE:${pallet}`);
       }
     }
   }
 
-  #buildText(fields, user) {
+  /** @param {CheckFields} fields @param {CheckUser} user @param {string} stage */
+  #buildText(fields, user, stage) {
     const title = fields.orderTitle || fields.orderNumber;
-    const lines = [`Заказ: ${title}`, `Склад: ${user.warehouse}`, `Проверил: ${user.name}`];
-    if (fields.noCargo === 'true') lines.push(`На складе ${user.warehouse} товара нет`);
-    else lines.push(`Европалеты: ${fields.euro || 0}`, `Американские палеты: ${fields.american || 0}`, `Всего палет: ${Number(fields.euro || 0) + Number(fields.american || 0)}`);
+    const lines =
+      stage === 'combined'
+        ? ['ОБЪЕДИНЁННЫЙ ГРУЗ', `Заказ: ${title}`, `Объединил: ${user.name}`]
+        : [`Заказ: ${title}`, `Склад: ${user.warehouse}`, `Проверил: ${user.name}`];
+    lines.push(
+      `Европалеты: ${fields.euro || 0}`,
+      `Американские палеты: ${fields.american || 0}`,
+      `Всего палет: ${Number(fields.euro || 0) + Number(fields.american || 0)}`
+    );
     if (fields.specialB === 'true') lines.push('Особый товар: Б — бракованный');
     if (fields.specialP === 'true') lines.push('Особый товар: П — перебитый');
     return lines.join('\n');
